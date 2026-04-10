@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Coffee Gazette" />
+  <meta name="theme-color" content="#E5E5E0" />
+  <title>The Coffee Gazette</title>
+  <link rel="apple-touch-icon" id="app-icon" />
+  <link rel="icon" id="favicon" type="image/png" />
+  <script>
+    // Generate coffee bean icon via canvas — used as home screen icon & favicon
+    (function() {
+      var canvas = document.createElement('canvas');
+      canvas.width = 180;
+      canvas.height = 180;
+      var ctx = canvas.getContext('2d');
+
+      // Background: warm off-white newsprint
+      ctx.fillStyle = '#111111';
+      ctx.fillRect(0, 0, 180, 180);
+
+      // Inner padding circle feel — draw the bean centred in the canvas
+      // Scale factor: original SVG is 24x24, canvas is 180x180 → factor 7.5
+      // Bean ellipse: cx=12 cy=12 rx=7 ry=10, rotated -20deg around (12,12)
+      ctx.save();
+      ctx.translate(90, 90);          // move to canvas centre
+      ctx.rotate(-20 * Math.PI / 180);
+
+      // Filled ellipse body
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 52, 74, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#C4894A';
+      ctx.fill();
+
+      // Outer stroke
+      ctx.strokeStyle = '#7A4A1E';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.restore();
+
+      // Crease line — unrotated in original SVG coords, scaled × 7.5
+      // M9 6 Q14 12 9 18  →  M(67.5,45) Q(105,90) (67.5,135)
+      ctx.beginPath();
+      ctx.moveTo(67.5, 45);
+      ctx.quadraticCurveTo(105, 90, 67.5, 135);
+      ctx.strokeStyle = 'rgba(17,17,17,0.55)';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      var dataUrl = canvas.toDataURL('image/png');
+      document.getElementById('app-icon').setAttribute('href', dataUrl);
+      document.getElementById('favicon').setAttribute('href', dataUrl);
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #F9F9F7; }
+    #root { height: 100%; }
+
+    .app {
+      max-width: 430px;
+      margin: 0 auto;
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      background: #F9F9F7;
+      font-family: 'Inter', 'Helvetica Neue', sans-serif;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Newsprint grain texture */
+    .app::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.6;
+    }
+
+    /* Masthead — light grey */
+    .masthead {
+      border-bottom: 4px solid #111111;
+      padding: 14px 16px 12px;
+      background: #E5E5E0;
+    }
+    .masthead-overline {
+      font-family: 'Inter', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #CC0000;
+      margin-bottom: 2px;
+    }
+    .masthead-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      font-weight: 900;
+      line-height: 1;
+      color: #111111;
+      letter-spacing: -0.5px;
+    }
+    .masthead-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: #525252;
+      margin-top: 4px;
+      letter-spacing: 0.05em;
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 4px solid #111111;
+    }
+    .tab-btn {
+      background: #F9F9F7;
+      border: none;
+      border-right: 1px solid #111111;
+      padding: 10px 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #737373;
+      cursor: pointer;
+      transition: background 0.1s;
+      position: relative;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn:last-child { border-right: none; }
+    .tab-btn.active {
+      background: #111111;
+      color: #F9F9F7;
+    }
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0; right: 0;
+      height: 4px;
+      background: #CC0000;
+    }
+
+    /* Add button bar */
+    .add-bar {
+      padding: 10px 16px;
+      border-bottom: 1px solid #111111;
+      display: flex;
+      justify-content: flex-end;
+      background: #F0F0EE;
+    }
+    .btn-add {
+      background: #111111;
+      color: #F9F9F7;
+      border: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 7px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:hover { background: #CC0000; }
+
+    /* Roast group label */
+    .roast-group-header {
+      padding: 6px 16px;
+      background: #111111;
+      color: #F9F9F7;
+      font-family: 'Inter', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      border-bottom: 1px solid #333;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .roast-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .roast-dot.light { background: #D4A96A; }
+    .roast-dot.medium { background: #8B5E3C; }
+    .roast-dot.dark { background: #2C1810; }
+
+    /* Bean card */
+    .bean-card {
+      border-bottom: 1px solid #111111;
+      padding: 12px 16px;
+      background: #F9F9F7;
+      cursor: pointer;
+      transition: background 0.1s;
+      position: relative;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .bean-card:hover, .bean-card:active { background: #F0F0EE; }
+    .bean-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 4px;
+    }
+    .bean-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: #111111;
+      line-height: 1.2;
+      flex: 1;
+      margin-right: 8px;
+    }
+    .bean-roaster {
+      font-family: 'Lora', serif;
+      font-size: 11px;
+      color: #737373;
+      font-style: italic;
+      margin-bottom: 6px;
+    }
+    .bean-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .decaf-badge {
+      font-family: 'Inter', sans-serif;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      border: 1px solid #111111;
+      padding: 2px 5px;
+      color: #111111;
+      background: transparent;
+    }
+    .caff-badge {
+      font-family: 'Inter', sans-serif;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      border: 1px solid #CC0000;
+      padding: 2px 5px;
+      color: #CC0000;
+      background: transparent;
+    }
+    .instructions-preview {
+      font-family: 'Lora', serif;
+      font-size: 11px;
+      color: #525252;
+      margin-top: 6px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Rating display */
+    .rating-display {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+    .rating-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      color: #111111;
+    }
+
+    /* Empty state */
+    .empty-state {
+      padding: 48px 24px;
+      text-align: center;
+      border-bottom: 1px solid #E5E5E0;
+    }
+    .empty-state-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: #111111;
+      margin-bottom: 8px;
+    }
+    .empty-state-sub {
+      font-family: 'Lora', serif;
+      font-style: italic;
+      font-size: 13px;
+      color: #737373;
+    }
+
+    /* Modal overlay */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(17,17,17,0.7);
+      z-index: 1000;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal-sheet {
+      background: #F9F9F7;
+      width: 100%;
+      max-width: 430px;
+      max-height: 92vh;
+      max-height: 92dvh;
+      overflow-y: auto;
+      border-top: 4px solid #CC0000;
+      -webkit-overflow-scrolling: touch;
+    }
+    .modal-header {
+      padding: 14px 16px 12px;
+      border-bottom: 2px solid #111111;
+      background: #111111;
+      color: #F9F9F7;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .modal-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: #F9F9F7;
+    }
+    .modal-close {
+      background: none;
+      border: 1px solid #525252;
+      color: #F9F9F7;
+      width: 32px;
+      height: 32px;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Inter', sans-serif;
+      transition: border-color 0.1s;
+      -webkit-tap-highlight-color: transparent;
+      flex-shrink: 0;
+    }
+    .modal-close:hover, .modal-close:active { border-color: #CC0000; color: #CC0000; }
+
+    /* Form */
+    .form-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .form-field {
+      border-bottom: 1px solid #E5E5E0;
+      padding: 12px 0;
+    }
+    .form-field:first-child { padding-top: 0; }
+    .form-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #737373;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .form-input {
+      width: 100%;
+      background: transparent;
+      border: 1px solid #E5E5E0;
+      border-bottom: 2px solid #111111;
+      padding: 8px 10px;
+      font-family: 'Lora', serif;
+      font-size: 16px; /* 16px prevents iOS zoom */
+      color: #111111;
+      outline: none;
+      border-radius: 0;
+      transition: border-color 0.15s;
+      -webkit-appearance: none;
+    }
+    .form-input:focus { border-color: #111111; border-bottom-color: #CC0000; }
+    .form-textarea {
+      width: 100%;
+      background: transparent;
+      border: 1px solid #E5E5E0;
+      border-bottom: 2px solid #111111;
+      padding: 8px 10px;
+      font-family: 'Lora', serif;
+      font-size: 16px; /* 16px prevents iOS zoom */
+      color: #111111;
+      outline: none;
+      border-radius: 0;
+      resize: vertical;
+      min-height: 90px;
+      line-height: 1.5;
+      transition: border-color 0.15s;
+      -webkit-appearance: none;
+    }
+    .form-textarea:focus { border-bottom-color: #CC0000; }
+
+    /* Roast selector */
+    .roast-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      border: 1px solid #111111;
+    }
+    .roast-opt {
+      padding: 9px 6px;
+      text-align: center;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #737373;
+      border-right: 1px solid #111111;
+      background: transparent;
+      transition: background 0.1s, color 0.1s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .roast-opt:last-child { border-right: none; }
+    .roast-opt.selected.light { background: #D4A96A; color: #111111; }
+    .roast-opt.selected.medium { background: #8B5E3C; color: #F9F9F7; }
+    .roast-opt.selected.dark { background: #2C1810; color: #F9F9F7; }
+    .roast-circle {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+    }
+    .roast-circle.light { background: #D4A96A; border: 1px solid #111; }
+    .roast-circle.medium { background: #8B5E3C; }
+    .roast-circle.dark { background: #2C1810; }
+
+    /* Caffeine toggle */
+    .toggle-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border: 1px solid #111111;
+    }
+    .toggle-opt {
+      padding: 10px 8px;
+      text-align: center;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #737373;
+      border-right: 1px solid #111111;
+      background: transparent;
+      transition: background 0.1s, color 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .toggle-opt:last-child { border-right: none; }
+    .toggle-opt.selected-caff { background: #111111; color: #F9F9F7; }
+    .toggle-opt.selected-decaf { background: #737373; color: #F9F9F7; }
+
+    /* Rating input */
+    .bean-rating-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .bean-icons-row {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .rating-num-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px;
+      font-weight: 600;
+      color: #111111;
+      min-width: 38px;
+    }
+    .rating-slider {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 3px;
+      background: #E5E5E0;
+      border: none;
+      outline: none;
+      border-radius: 0;
+      cursor: pointer;
+    }
+    .rating-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      background: #111111;
+      cursor: pointer;
+      border-radius: 0;
+      border: 2px solid #F9F9F7;
+      box-shadow: 0 0 0 1px #111111;
+    }
+    .rating-slider::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      background: #111111;
+      cursor: pointer;
+      border-radius: 0;
+      border: 2px solid #F9F9F7;
+      box-shadow: 0 0 0 1px #111111;
+    }
+    .rating-scale-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 4px;
+    }
+    .rating-scale-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: #A3A3A3;
+    }
+
+    /* Form actions */
+    .form-actions {
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      border-top: 2px solid #111111;
+      position: sticky;
+      bottom: 0;
+      background: #F9F9F7;
+    }
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid #111111;
+      color: #111111;
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 12px;
+      cursor: pointer;
+      transition: background 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-cancel:hover, .btn-cancel:active { background: #F0F0EE; }
+    .btn-save {
+      background: #111111;
+      border: 1px solid #111111;
+      color: #F9F9F7;
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 12px;
+      cursor: pointer;
+      transition: background 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-save:hover, .btn-save:active { background: #CC0000; border-color: #CC0000; }
+
+    /* Detail view */
+    .detail-back {
+      padding: 10px 16px;
+      border-bottom: 1px solid #111111;
+      background: #F0F0EE;
+    }
+    .btn-back {
+      background: none;
+      border: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #111111;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-back:hover, .btn-back:active { color: #CC0000; }
+    .detail-hero {
+      padding: 20px 16px 16px;
+      border-bottom: 2px solid #111111;
+    }
+    .detail-roast-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #CC0000;
+      margin-bottom: 4px;
+    }
+    .detail-bean-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 26px;
+      font-weight: 900;
+      color: #111111;
+      line-height: 1.1;
+      margin-bottom: 4px;
+    }
+    .detail-roaster {
+      font-family: 'Lora', serif;
+      font-style: italic;
+      font-size: 14px;
+      color: #737373;
+      margin-bottom: 12px;
+    }
+    .detail-rating-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .detail-rating-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 24px;
+      font-weight: 600;
+      color: #111111;
+    }
+    .detail-meta-badges {
+      display: flex;
+      gap: 6px;
+    }
+    .detail-instructions-section {
+      padding: 16px;
+      border-bottom: 1px solid #E5E5E0;
+    }
+    .detail-section-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #737373;
+      margin-bottom: 10px;
+    }
+    .detail-instructions-text {
+      font-family: 'Lora', serif;
+      font-size: 14px;
+      color: #111111;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+    .detail-actions {
+      padding: 16px;
+      display: flex;
+      gap: 8px;
+    }
+    .btn-delete {
+      background: transparent;
+      border: 1px solid #CC0000;
+      color: #CC0000;
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: background 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-delete:hover, .btn-delete:active { background: #CC0000; color: #F9F9F7; }
+    .btn-edit {
+      background: #111111;
+      border: 1px solid #111111;
+      color: #F9F9F7;
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 12px 16px;
+      cursor: pointer;
+      flex: 1;
+      transition: background 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-edit:hover, .btn-edit:active { background: #333; }
+
+    /* Edition bar */
+    .edition-bar {
+      padding: 5px 16px;
+      border-bottom: 1px solid #111111;
+      background: #E5E5E0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .edition-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: #525252;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const STORAGE_KEY = "coffee-gazette-data";
+
+    const SAMPLE_DATA = {
+      pourover: [
+        {
+          id: "1",
+          name: "Ethiopia Yirgacheffe",
+          roaster: "Onyx Coffee Lab",
+          roast: "light",
+          rating: 4.75,
+          caffeine: "caffeine",
+          instructions: "Bloom 45s with 60g water. 4 pours total. Water temp 93°C. Total brew time: 3:30. Grind size 22 on Comandante.\n\nExpect floral jasmine notes with lemon acidity.",
+        },
+        {
+          id: "2",
+          name: "Guatemala Huehuetenango",
+          roaster: "Intelligentsia",
+          roast: "medium",
+          rating: 4.25,
+          caffeine: "caffeine",
+          instructions: "Grind 20g. 320g water at 90°C. 30s bloom. Three pours at 1:00, 2:00. Total time 3:45.",
+        },
+      ],
+      espresso: [
+        {
+          id: "3",
+          name: "Decaf Swiss Water",
+          roaster: "Blue Bottle",
+          roast: "dark",
+          rating: 3.5,
+          caffeine: "decaf",
+          instructions: "18g in, 36g out. 27 seconds. 9 bar. Velvety mouthfeel, dark chocolate finish.",
+        },
+      ],
+    };
+
+    function loadData() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        return saved ? JSON.parse(saved) : SAMPLE_DATA;
+      } catch (e) {
+        return SAMPLE_DATA;
+      }
+    }
+
+    function saveData(data) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {}
+    }
+
+    const ROAST_ORDER = ["light", "medium", "dark"];
+
+    const defaultForm = {
+      name: "",
+      roaster: "",
+      roast: "light",
+      rating: 4.0,
+      caffeine: "caffeine",
+      instructions: "",
+    };
+
+    const formatDate = () =>
+      new Date().toLocaleDateString("en-US", {
+        weekday: "short", year: "numeric", month: "short", day: "numeric",
+      }).toUpperCase();
+
+    // Coffee bean SVG — supports partial fill for decimals
+    function BeanIcon({ filled = true, partial = 0, size = 16 }) {
+      const uid = React.useId ? React.useId() : Math.random().toString(36).slice(2);
+      const clipId = `bc-${uid}`;
+      const fillWidth = filled ? 24 : partial * 24;
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0}}>
+          <defs>
+            <clipPath id={clipId}>
+              <rect x="0" y="0" width={fillWidth} height="24" />
+            </clipPath>
+          </defs>
+          <ellipse cx="12" cy="12" rx="7" ry="10" stroke="#8B5E3C" strokeWidth="1.5" fill="#F9F9F7" transform="rotate(-20 12 12)" />
+          <path d="M9 6 Q14 12 9 18" stroke="#8B5E3C" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+          <g clipPath={`url(#${clipId})`}>
+            <ellipse cx="12" cy="12" rx="7" ry="10" fill="#8B5E3C" transform="rotate(-20 12 12)" />
+            <path d="M9 6 Q14 12 9 18" stroke="#F9F9F7" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+          </g>
+        </svg>
+      );
+    }
+
+    function BeanRating({ rating, size = 16 }) {
+      const beans = [];
+      for (let i = 1; i <= 5; i++) {
+        if (i <= Math.floor(rating)) {
+          beans.push(<BeanIcon key={i} filled={true} size={size} />);
+        } else if (i === Math.ceil(rating) && rating % 1 > 0) {
+          beans.push(<BeanIcon key={i} filled={false} partial={rating % 1} size={size} />);
+        } else {
+          beans.push(<BeanIcon key={i} filled={false} partial={0} size={size} />);
+        }
+      }
+      return <div className="bean-icons-row">{beans}</div>;
+    }
+
+    function CoffeeLog() {
+      const [activeTab, setActiveTab] = useState("pourover");
+      const [data, setData] = useState(loadData);
+      const [showForm, setShowForm] = useState(false);
+      const [editingId, setEditingId] = useState(null);
+      const [form, setForm] = useState(defaultForm);
+      const [detailId, setDetailId] = useState(null);
+
+      useEffect(() => {
+        saveData(data);
+      }, [data]);
+
+      const currentBeans = data[activeTab];
+
+      const grouped = ROAST_ORDER.reduce((acc, roast) => {
+        const items = currentBeans
+          .filter((b) => b.roast === roast)
+          .sort((a, b) => b.rating - a.rating);
+        if (items.length) acc[roast] = items;
+        return acc;
+      }, {});
+
+      const openAdd = () => {
+        setForm(defaultForm);
+        setEditingId(null);
+        setShowForm(true);
+      };
+
+      const openEdit = (bean) => {
+        setForm({ ...bean });
+        setEditingId(bean.id);
+        setShowForm(true);
+        setDetailId(null);
+      };
+
+      const closeForm = () => {
+        setShowForm(false);
+        setEditingId(null);
+      };
+
+      const saveForm = () => {
+        if (!form.name.trim()) return;
+        setData((prev) => {
+          const list = [...prev[activeTab]];
+          if (editingId) {
+            const idx = list.findIndex((b) => b.id === editingId);
+            if (idx !== -1) list[idx] = { ...form, id: editingId };
+          } else {
+            list.push({ ...form, id: Date.now().toString() });
+          }
+          return { ...prev, [activeTab]: list };
+        });
+        closeForm();
+      };
+
+      const deleteBean = (id) => {
+        setData((prev) => ({
+          ...prev,
+          [activeTab]: prev[activeTab].filter((b) => b.id !== id),
+        }));
+        setDetailId(null);
+      };
+
+      const detailBean = currentBeans.find((b) => b.id === detailId);
+
+      const switchTab = (tab) => {
+        setActiveTab(tab);
+        setDetailId(null);
+      };
+
+      return (
+        <div className="app">
+          {/* Masthead */}
+          <div className="masthead">
+            <div className="masthead-overline">Daily Record</div>
+            <div className="masthead-title">The Coffee Gazette</div>
+            <div className="masthead-sub">{formatDate()} · BREW LOG · EST. 2021</div>
+          </div>
+
+          {/* Tabs */}
+          <div className="tab-bar">
+            <button
+              className={`tab-btn ${activeTab === "pourover" ? "active" : ""}`}
+              onClick={() => switchTab("pourover")}
+            >
+              ▲ Pour Over
+            </button>
+            <button
+              className={`tab-btn ${activeTab === "espresso" ? "active" : ""}`}
+              onClick={() => switchTab("espresso")}
+            >
+              ◉ Espresso
+            </button>
+          </div>
+
+          {/* Detail view */}
+          {detailBean ? (
+            <>
+              <div className="detail-back">
+                <button className="btn-back" onClick={() => setDetailId(null)}>
+                  ← Back to {activeTab === "pourover" ? "Pour Over" : "Espresso"}
+                </button>
+              </div>
+              <div className="detail-hero">
+                <div className="detail-roast-label">{detailBean.roast.toUpperCase()} ROAST</div>
+                <div className="detail-bean-name">{detailBean.name}</div>
+                <div className="detail-roaster">{detailBean.roaster}</div>
+                <div className="detail-rating-row">
+                  <BeanRating rating={detailBean.rating} size={22} />
+                  <span className="detail-rating-num">{detailBean.rating.toFixed(2)}</span>
+                </div>
+                <div className="detail-meta-badges">
+                  <span className={detailBean.caffeine === "decaf" ? "decaf-badge" : "caff-badge"}>
+                    {detailBean.caffeine === "decaf" ? "Decaf" : "Caffeine"}
+                  </span>
+                </div>
+              </div>
+              {detailBean.instructions ? (
+                <div className="detail-instructions-section">
+                  <div className="detail-section-label">Brew Instructions</div>
+                  <div className="detail-instructions-text">{detailBean.instructions}</div>
+                </div>
+              ) : null}
+              <div className="detail-actions">
+                <button className="btn-delete" onClick={() => deleteBean(detailBean.id)}>Delete</button>
+                <button className="btn-edit" onClick={() => openEdit(detailBean)}>Edit Entry</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="edition-bar">
+                <span className="edition-text">
+                  {currentBeans.length} {currentBeans.length === 1 ? "ENTRY" : "ENTRIES"} · BY ROAST &amp; RATING
+                </span>
+                <span className="edition-text">{activeTab === "pourover" ? "POUR OVER" : "ESPRESSO"}</span>
+              </div>
+
+              <div className="add-bar">
+                <button className="btn-add" onClick={openAdd}>+ Log New Bean</button>
+              </div>
+
+              {currentBeans.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-state-title">No beans logged yet.</div>
+                  <div className="empty-state-sub">Tap "Log New Bean" to record your first brew.</div>
+                </div>
+              ) : (
+                Object.entries(grouped).map(([roast, beans]) => (
+                  <div key={roast}>
+                    <div className="roast-group-header">
+                      <span className={`roast-dot ${roast}`} />
+                      {roast.toUpperCase()} ROAST · {beans.length} {beans.length === 1 ? "ENTRY" : "ENTRIES"}
+                    </div>
+                    {beans.map((bean) => (
+                      <div key={bean.id} className="bean-card" onClick={() => setDetailId(bean.id)}>
+                        <div className="bean-card-header">
+                          <div className="bean-name">{bean.name}</div>
+                          <div className="rating-display">
+                            <BeanRating rating={bean.rating} size={13} />
+                            <span className="rating-num">{bean.rating.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        <div className="bean-roaster">{bean.roaster}</div>
+                        <div className="bean-meta-row">
+                          <span className={bean.caffeine === "decaf" ? "decaf-badge" : "caff-badge"}>
+                            {bean.caffeine === "decaf" ? "Decaf" : "Caffeine"}
+                          </span>
+                        </div>
+                        {bean.instructions ? (
+                          <div className="instructions-preview">{bean.instructions}</div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ))
+              )}
+            </>
+          )}
+
+          {/* Add / Edit Modal */}
+          {showForm && (
+            <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && closeForm()}>
+              <div className="modal-sheet">
+                <div className="modal-header">
+                  <div className="modal-title">
+                    {editingId ? "Edit Entry" : `New ${activeTab === "pourover" ? "Pour Over" : "Espresso"}`}
+                  </div>
+                  <button className="modal-close" onClick={closeForm}>✕</button>
+                </div>
+
+                <div className="form-body">
+                  <div className="form-field">
+                    <label className="form-label">Bean Name</label>
+                    <input
+                      className="form-input"
+                      placeholder="e.g. Ethiopia Yirgacheffe"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label className="form-label">Roaster</label>
+                    <input
+                      className="form-input"
+                      placeholder="e.g. Onyx Coffee Lab"
+                      value={form.roaster}
+                      onChange={(e) => setForm({ ...form, roaster: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label className="form-label">Roast Level</label>
+                    <div className="roast-selector">
+                      {["light", "medium", "dark"].map((r) => (
+                        <div
+                          key={r}
+                          className={`roast-opt ${form.roast === r ? `selected ${r}` : ""}`}
+                          onClick={() => setForm({ ...form, roast: r })}
+                        >
+                          <span className={`roast-circle ${r}`} />
+                          {r.toUpperCase()}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="form-field">
+                    <label className="form-label">Caffeine</label>
+                    <div className="toggle-row">
+                      <div
+                        className={`toggle-opt ${form.caffeine === "caffeine" ? "selected-caff" : ""}`}
+                        onClick={() => setForm({ ...form, caffeine: "caffeine" })}
+                      >
+                        ◉ Caffeinated
+                      </div>
+                      <div
+                        className={`toggle-opt ${form.caffeine === "decaf" ? "selected-decaf" : ""}`}
+                        onClick={() => setForm({ ...form, caffeine: "decaf" })}
+                      >
+                        ○ Decaf
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="form-field">
+                    <label className="form-label">Rating — out of 5</label>
+                    <div className="bean-rating-row" style={{marginBottom: "10px"}}>
+                      <BeanRating rating={form.rating} size={22} />
+                      <span className="rating-num-display">{form.rating.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      className="rating-slider"
+                      min={0}
+                      max={5}
+                      step={0.25}
+                      value={form.rating}
+                      onChange={(e) => setForm({ ...form, rating: parseFloat(e.target.value) })}
+                    />
+                    <div className="rating-scale-labels">
+                      <span className="rating-scale-label">0</span>
+                      <span className="rating-scale-label">5</span>
+                    </div>
+                  </div>
+
+                  <div className="form-field">
+                    <label className="form-label">Brew Instructions</label>
+                    <textarea
+                      className="form-textarea"
+                      placeholder="Grind size, water temp, bloom time, ratios, tasting notes..."
+                      value={form.instructions}
+                      onChange={(e) => setForm({ ...form, instructions: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-actions">
+                  <button className="btn-cancel" onClick={closeForm}>Cancel</button>
+                  <button className="btn-save" onClick={saveForm}>
+                    {editingId ? "Save Changes" : "Log Bean"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<CoffeeLog />);
+  </script>
+</body>
+</html>
