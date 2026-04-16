@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -718,6 +719,105 @@
     }
     .btn-edit:hover, .btn-edit:active { background: #333; }
 
+    /* Settings button in masthead */
+    .masthead-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .btn-settings {
+      background: none;
+      border: 1px solid #737373;
+      color: #525252;
+      width: 30px;
+      height: 30px;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+      -webkit-tap-highlight-color: transparent;
+      transition: border-color 0.1s, color 0.1s;
+    }
+    .btn-settings:hover, .btn-settings:active { border-color: #CC0000; color: #CC0000; }
+
+    /* Settings bottom sheet */
+    .settings-section-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #737373;
+      padding: 14px 16px 6px;
+      border-bottom: 1px solid #E5E5E0;
+    }
+    .settings-row {
+      padding: 14px 16px;
+      border-bottom: 1px solid #E5E5E0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .settings-row-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: #111111;
+    }
+    .settings-row-desc {
+      font-family: 'Lora', serif;
+      font-size: 12px;
+      font-style: italic;
+      color: #737373;
+      line-height: 1.4;
+    }
+    .btn-settings-action {
+      margin-top: 8px;
+      background: #111111;
+      border: 1px solid #111111;
+      color: #F9F9F7;
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 10px 16px;
+      cursor: pointer;
+      align-self: flex-start;
+      transition: background 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-settings-action:hover, .btn-settings-action:active { background: #CC0000; border-color: #CC0000; }
+    .btn-settings-action.outline {
+      background: transparent;
+      color: #111111;
+    }
+    .btn-settings-action.outline:hover, .btn-settings-action.outline:active {
+      background: #F0F0EE;
+      border-color: #111111;
+      color: #111111;
+    }
+    .import-msg {
+      margin-top: 8px;
+      padding: 8px 10px;
+      font-family: 'Lora', serif;
+      font-size: 12px;
+      border-left: 3px solid #111111;
+    }
+    .import-msg.success { border-color: #2E7D32; color: #2E7D32; background: #F0FFF0; }
+    .import-msg.error   { border-color: #CC0000; color: #CC0000; background: #FFF5F5; }
+    .settings-stat {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: #525252;
+      margin-top: 2px;
+    }
+    /* Hidden file input */
+    .import-file-input { display: none; }
+
     /* Edition bar */
     .edition-bar {
       padding: 5px 16px;
@@ -741,40 +841,11 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    const STORAGE_KEY = "coffee-gazette-data";
+    const STORAGE_KEY = "coffee-gazette-data-v3";
 
     const SAMPLE_DATA = {
-      pourover: [
-        {
-          id: "1",
-          name: "Ethiopia Yirgacheffe",
-          roaster: "Onyx Coffee Lab",
-          roast: "light",
-          rating: 4.75,
-          caffeine: "caffeine",
-          instructions: "Bloom 45s with 60g water. 4 pours total. Water temp 93°C. Total brew time: 3:30. Grind size 22 on Comandante.\n\nExpect floral jasmine notes with lemon acidity.",
-        },
-        {
-          id: "2",
-          name: "Guatemala Huehuetenango",
-          roaster: "Intelligentsia",
-          roast: "medium",
-          rating: 4.25,
-          caffeine: "caffeine",
-          instructions: "Grind 20g. 320g water at 90°C. 30s bloom. Three pours at 1:00, 2:00. Total time 3:45.",
-        },
-      ],
-      espresso: [
-        {
-          id: "3",
-          name: "Decaf Swiss Water",
-          roaster: "Blue Bottle",
-          roast: "dark",
-          rating: 3.5,
-          caffeine: "decaf",
-          instructions: "18g in, 36g out. 27 seconds. 9 bar. Velvety mouthfeel, dark chocolate finish.",
-        },
-      ],
+      pourover: [],
+      espresso: [],
     };
 
     function loadData() {
@@ -844,17 +915,78 @@
       return <div className="bean-icons-row">{beans}</div>;
     }
 
+    // ── Export: download all data as a .json file ──────────────────────────
+    function exportData(data) {
+      const payload = {
+        _app: "coffee-gazette",
+        _version: 2,
+        _exported: new Date().toISOString(),
+        ...data,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `coffee-gazette-backup-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ── Import: read a .json file and restore data ──────────────────────────
+    function importData(file, onSuccess, onError) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          // Accept both raw shape and exported shape with _meta keys
+          const pourover = Array.isArray(parsed.pourover) ? parsed.pourover : [];
+          const espresso = Array.isArray(parsed.espresso) ? parsed.espresso : [];
+          if (pourover.length === 0 && espresso.length === 0) {
+            onError("No valid entries found in this file.");
+            return;
+          }
+          onSuccess({ pourover, espresso });
+        } catch {
+          onError("Could not read file. Make sure it's a Coffee Gazette backup.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
     function CoffeeLog() {
-      const [activeTab, setActiveTab] = useState("pourover");
+      const [activeTab, setActiveTab] = useState("espresso");
       const [data, setData] = useState(loadData);
       const [showForm, setShowForm] = useState(false);
       const [editingId, setEditingId] = useState(null);
       const [form, setForm] = useState(defaultForm);
       const [detailId, setDetailId] = useState(null);
+      const [showSettings, setShowSettings] = useState(false);
+      const [importMsg, setImportMsg] = useState(null); // { type: "success"|"error", text }
 
       useEffect(() => {
         saveData(data);
       }, [data]);
+
+      const handleExport = () => {
+        exportData(data);
+      };
+
+      const handleImportFile = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        importData(
+          file,
+          (newData) => {
+            setData(newData);
+            setImportMsg({ type: "success", text: `Imported ${newData.pourover.length + newData.espresso.length} entries successfully.` });
+            e.target.value = "";
+          },
+          (errMsg) => {
+            setImportMsg({ type: "error", text: errMsg });
+            e.target.value = "";
+          }
+        );
+      };
 
       const currentBeans = data[activeTab];
 
@@ -919,7 +1051,12 @@
           {/* Masthead */}
           <div className="masthead">
             <div className="masthead-overline">Daily Record</div>
-            <div className="masthead-title">The Coffee Gazette</div>
+            <div className="masthead-row">
+              <div className="masthead-title">The Coffee Gazette</div>
+              <button className="btn-settings" onClick={() => { setShowSettings(true); setImportMsg(null); }} title="Settings / Export / Import">
+                ⚙
+              </button>
+            </div>
             <div className="masthead-sub">{formatDate()} · BREW LOG · EST. 2021</div>
           </div>
 
@@ -1021,6 +1158,87 @@
                 ))
               )}
             </>
+          )}
+
+          {/* Settings / Export / Import Modal */}
+          {showSettings && (
+            <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowSettings(false)}>
+              <div className="modal-sheet">
+                <div className="modal-header">
+                  <div className="modal-title">Settings</div>
+                  <button className="modal-close" onClick={() => setShowSettings(false)}>✕</button>
+                </div>
+
+                <div className="settings-section-label">Data Transfer</div>
+
+                {/* Export */}
+                <div className="settings-row">
+                  <div className="settings-row-title">Export All Data</div>
+                  <div className="settings-row-desc">
+                    Downloads a <strong>.json</strong> backup of every entry across both tabs. Save it to Files, iCloud, or AirDrop it to your new iPhone — then import it there.
+                  </div>
+                  <div className="settings-stat">
+                    {data.pourover.length + data.espresso.length} total entries · {data.pourover.length} pour over · {data.espresso.length} espresso
+                  </div>
+                  <button className="btn-settings-action" onClick={handleExport}>
+                    ↓ Download Backup
+                  </button>
+                </div>
+
+                {/* Import */}
+                <div className="settings-row">
+                  <div className="settings-row-title">Import from Backup</div>
+                  <div className="settings-row-desc">
+                    Load a previously exported <strong>.json</strong> file. This will <em>replace</em> all current entries with the backup — use on a new device after exporting from your old one.
+                  </div>
+                  <input
+                    type="file"
+                    accept=".json,application/json"
+                    className="import-file-input"
+                    id="import-file"
+                    onChange={handleImportFile}
+                  />
+                  <button
+                    className="btn-settings-action outline"
+                    onClick={() => { setImportMsg(null); document.getElementById("import-file").click(); }}
+                  >
+                    ↑ Choose Backup File
+                  </button>
+                  {importMsg && (
+                    <div className={`import-msg ${importMsg.type}`}>{importMsg.text}</div>
+                  )}
+                </div>
+
+                <div className="settings-section-label">App</div>
+
+                {/* Refresh */}
+                <div className="settings-row">
+                  <div className="settings-row-title">Refresh App</div>
+                  <div className="settings-row-desc">
+                    Fetches the latest version of the app from GitHub. Your saved entries won't be affected — they live in your browser's local storage.
+                  </div>
+                  <button
+                    className="btn-settings-action outline"
+                    onClick={() => window.location.reload()}
+                  >
+                    ↺ Reload from GitHub
+                  </button>
+                </div>
+
+                <div className="settings-section-label">How to move to a new iPhone</div>
+                <div className="settings-row">
+                  <div className="settings-row-desc" style={{fontStyle:"normal", lineHeight:"1.7"}}>
+                    1. Tap <strong>Download Backup</strong> above and save the file to iCloud Drive or Files.<br/>
+                    2. On your new iPhone, open this app in Safari and add it to your Home Screen.<br/>
+                    3. Open the app, tap ⚙, choose <strong>Choose Backup File</strong>, and select your saved file.
+                  </div>
+                </div>
+
+                <div className="form-actions" style={{gridTemplateColumns:"1fr"}}>
+                  <button className="btn-cancel" onClick={() => setShowSettings(false)}>Close</button>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Add / Edit Modal */}
