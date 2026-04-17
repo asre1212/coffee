@@ -719,6 +719,182 @@
     }
     .btn-edit:hover, .btn-edit:active { background: #333; }
 
+    /* 3-column tab bar */
+    .tab-bar { grid-template-columns: 1fr 1fr 1fr; }
+
+    /* Country selector */
+    .country-selected-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 8px;
+      min-height: 0;
+    }
+    .country-chip {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: #111111;
+      color: #F9F9F7;
+      font-family: 'Inter', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 7px 3px 8px;
+      border: 1px solid #111111;
+    }
+    .country-chip-remove {
+      background: none;
+      border: none;
+      color: #A3A3A3;
+      font-size: 11px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .country-chip-remove:hover { color: #CC0000; }
+    .country-search {
+      width: 100%;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid #E5E5E0;
+      padding: 6px 0;
+      font-family: 'Lora', serif;
+      font-size: 14px;
+      color: #111111;
+      outline: none;
+      margin-bottom: 4px;
+    }
+    .country-search:focus { border-bottom-color: #CC0000; }
+    .country-search::placeholder { color: #A3A3A3; font-style: italic; }
+    .country-list {
+      max-height: 140px;
+      overflow-y: auto;
+      border: 1px solid #E5E5E0;
+      -webkit-overflow-scrolling: touch;
+    }
+    .country-list-item {
+      padding: 8px 10px;
+      font-family: 'Lora', serif;
+      font-size: 13px;
+      color: #111111;
+      cursor: pointer;
+      border-bottom: 1px solid #E5E5E0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s;
+    }
+    .country-list-item:last-child { border-bottom: none; }
+    .country-list-item:hover, .country-list-item:active { background: #F0F0EE; }
+    .country-list-item.selected { background: #F5F5F5; color: #737373; }
+    .country-list-item.selected::after { content: "✓"; color: #111111; font-weight: 700; font-size: 12px; }
+    .country-list-item.add-custom { color: #CC0000; font-style: italic; }
+    .country-display-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .country-display-chip {
+      font-family: 'Inter', sans-serif;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border: 1px solid #737373;
+      padding: 2px 6px;
+      color: #525252;
+    }
+
+    /* Origin tab view */
+    .origin-summary-bar {
+      padding: 10px 16px;
+      border-bottom: 1px solid #111111;
+      background: #F0F0EE;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .origin-summary-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: #525252;
+      letter-spacing: 0.05em;
+    }
+    .origin-country-header {
+      padding: 8px 16px;
+      background: #111111;
+      color: #F9F9F7;
+      border-bottom: 1px solid #333;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .origin-country-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: #F9F9F7;
+      flex: 1;
+    }
+    .origin-country-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: #A3A3A3;
+      text-align: right;
+    }
+    .origin-bean-card {
+      border-bottom: 1px solid #111111;
+      padding: 10px 16px;
+      background: #F9F9F7;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .origin-bean-left { flex: 1; min-width: 0; }
+    .origin-bean-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: #111111;
+      line-height: 1.2;
+      margin-bottom: 2px;
+    }
+    .origin-bean-roaster {
+      font-family: 'Lora', serif;
+      font-size: 11px;
+      font-style: italic;
+      color: #737373;
+      margin-bottom: 4px;
+    }
+    .origin-bean-tags {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .origin-method-badge {
+      font-family: 'Inter', sans-serif;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border: 1px solid #E5E5E0;
+      padding: 2px 5px;
+      color: #737373;
+    }
+    .origin-bean-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+
     /* Settings button in masthead */
     .masthead-row {
       display: flex;
@@ -872,6 +1048,7 @@
       rating: 4.0,
       caffeine: "caffeine",
       instructions: "",
+      countries: [],
     };
 
     const formatDate = () =>
@@ -913,6 +1090,90 @@
         }
       }
       return <div className="bean-icons-row">{beans}</div>;
+    }
+
+    const COFFEE_COUNTRIES = [
+      "Bolivia","Brazil","Burundi","China","Colombia","Congo",
+      "Costa Rica","Cuba","Ecuador","El Salvador","Ethiopia",
+      "Guatemala","Haiti","Honduras","India","Indonesia","Jamaica",
+      "Kenya","Laos","Madagascar","Malawi","Mexico","Myanmar",
+      "Nicaragua","Panama","Papua New Guinea","Peru","Philippines",
+      "Rwanda","Tanzania","Thailand","Timor-Leste","Uganda",
+      "Venezuela","Vietnam","Yemen","Zambia","Zimbabwe",
+    ];
+
+    function CountrySelector({ selected, onChange }) {
+      const [query, setQuery] = useState("");
+
+      const filtered = query.trim()
+        ? COFFEE_COUNTRIES.filter(c =>
+            c.toLowerCase().includes(query.toLowerCase()) && !selected.includes(c)
+          )
+        : COFFEE_COUNTRIES.filter(c => !selected.includes(c));
+
+      const showAddCustom =
+        query.trim() &&
+        !COFFEE_COUNTRIES.some(c => c.toLowerCase() === query.toLowerCase()) &&
+        !selected.some(c => c.toLowerCase() === query.toLowerCase());
+
+      const toggle = (country) => {
+        if (selected.includes(country)) {
+          onChange(selected.filter(c => c !== country));
+        } else {
+          onChange([...selected, country]);
+          setQuery("");
+        }
+      };
+
+      const addCustom = () => {
+        const val = query.trim();
+        if (val && !selected.includes(val)) {
+          onChange([...selected, val]);
+        }
+        setQuery("");
+      };
+
+      return (
+        <div>
+          {selected.length > 0 && (
+            <div className="country-selected-chips">
+              {selected.map(c => (
+                <span key={c} className="country-chip">
+                  {c}
+                  <button className="country-chip-remove" onClick={() => toggle(c)}>✕</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <input
+            className="country-search"
+            placeholder="Search or type a country…"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+          />
+          <div className="country-list">
+            {filtered.slice(0, 40).map(c => (
+              <div
+                key={c}
+                className={`country-list-item${selected.includes(c) ? " selected" : ""}`}
+                onClick={() => toggle(c)}
+              >
+                {c}
+              </div>
+            ))}
+            {showAddCustom && (
+              <div className="country-list-item add-custom" onClick={addCustom}>
+                + Add "{query.trim()}"
+              </div>
+            )}
+            {filtered.length === 0 && !showAddCustom && (
+              <div className="country-list-item" style={{color:"#A3A3A3",fontStyle:"italic",cursor:"default"}}>
+                No matches
+              </div>
+            )}
+          </div>
+        </div>
+      );
     }
 
     // ── Export: download all data as a .json file ──────────────────────────
@@ -1062,22 +1323,89 @@
 
           {/* Tabs */}
           <div className="tab-bar">
-            <button
-              className={`tab-btn ${activeTab === "pourover" ? "active" : ""}`}
-              onClick={() => switchTab("pourover")}
-            >
-              ▲ Pour Over
-            </button>
-            <button
-              className={`tab-btn ${activeTab === "espresso" ? "active" : ""}`}
-              onClick={() => switchTab("espresso")}
-            >
-              ◉ Espresso
-            </button>
+            <button className={`tab-btn ${activeTab === "pourover" ? "active" : ""}`} onClick={() => switchTab("pourover")}>▲ Pour Over</button>
+            <button className={`tab-btn ${activeTab === "espresso" ? "active" : ""}`} onClick={() => switchTab("espresso")}>◉ Espresso</button>
+            <button className={`tab-btn ${activeTab === "origin"   ? "active" : ""}`} onClick={() => switchTab("origin")}>⊕ By Origin</button>
           </div>
 
+          {/* ── Origin view ─────────────────────────────────────────────── */}
+          {activeTab === "origin" && (() => {
+            const allBeans = [
+              ...data.pourover.map(b => ({ ...b, method: "Pour Over" })),
+              ...data.espresso.map(b => ({ ...b, method: "Espresso"  })),
+            ];
+
+            // Build country → beans map; beans with no countries go under "Unspecified"
+            const countryMap = {};
+            allBeans.forEach(bean => {
+              const cs = bean.countries && bean.countries.length > 0 ? bean.countries : ["Unspecified"];
+              cs.forEach(c => {
+                if (!countryMap[c]) countryMap[c] = [];
+                countryMap[c].push(bean);
+              });
+            });
+
+            // Sort countries alphabetically, Unspecified last
+            const sortedCountries = Object.keys(countryMap).sort((a, b) => {
+              if (a === "Unspecified") return 1;
+              if (b === "Unspecified") return -1;
+              return a.localeCompare(b);
+            });
+
+            const totalCountries = sortedCountries.filter(c => c !== "Unspecified").length;
+
+            return (
+              <>
+                <div className="origin-summary-bar">
+                  <span className="origin-summary-text">{totalCountries} ORIGINS · {allBeans.length} TOTAL ENTRIES</span>
+                  <span className="origin-summary-text">ALL METHODS</span>
+                </div>
+                {allBeans.length === 0 ? (
+                  <div className="empty-state">
+                    <div className="empty-state-title">No beans logged yet.</div>
+                    <div className="empty-state-sub">Add entries in Pour Over or Espresso tabs.</div>
+                  </div>
+                ) : (
+                  sortedCountries.map(country => {
+                    const beans = countryMap[country].sort((a, b) => b.rating - a.rating);
+                    const avg = (beans.reduce((s, b) => s + b.rating, 0) / beans.length);
+                    return (
+                      <div key={country}>
+                        <div className="origin-country-header">
+                          <div className="origin-country-name">{country}</div>
+                          <div className="origin-country-meta">
+                            AVG {avg.toFixed(2)} · {beans.length} {beans.length === 1 ? "BEAN" : "BEANS"}
+                          </div>
+                        </div>
+                        {beans.map(bean => (
+                          <div key={bean.id + country} className="origin-bean-card">
+                            <div className="origin-bean-left">
+                              <div className="origin-bean-name">{bean.name}</div>
+                              {bean.roaster ? <div className="origin-bean-roaster">{bean.roaster}</div> : null}
+                              <div className="origin-bean-tags">
+                                <span className="origin-method-badge">{bean.method}</span>
+                                <span className="origin-method-badge">{bean.roast}</span>
+                                <span className={bean.caffeine === "decaf" ? "decaf-badge" : "caff-badge"} style={{fontSize:"8px"}}>
+                                  {bean.caffeine === "decaf" ? "Decaf" : "Caff"}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="origin-bean-right">
+                              <BeanRating rating={bean.rating} size={12} />
+                              <span className="rating-num">{bean.rating.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })
+                )}
+              </>
+            );
+          })()}
+
           {/* Detail view */}
-          {detailBean ? (
+          {activeTab !== "origin" && detailBean ? (
             <>
               <div className="detail-back">
                 <button className="btn-back" onClick={() => setDetailId(null)}>
@@ -1097,6 +1425,16 @@
                     {detailBean.caffeine === "decaf" ? "Decaf" : "Caffeine"}
                   </span>
                 </div>
+                {detailBean.countries && detailBean.countries.length > 0 && (
+                  <div style={{marginTop:"10px"}}>
+                    <div className="detail-section-label" style={{marginBottom:"6px"}}>Origin</div>
+                    <div className="country-display-chips">
+                      {detailBean.countries.map(c => (
+                        <span key={c} className="country-display-chip" style={{fontSize:"10px",padding:"3px 8px"}}>{c}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               {detailBean.instructions ? (
                 <div className="detail-instructions-section">
@@ -1109,7 +1447,7 @@
                 <button className="btn-edit" onClick={() => openEdit(detailBean)}>Edit Entry</button>
               </div>
             </>
-          ) : (
+          ) : activeTab !== "origin" ? (
             <>
               <div className="edition-bar">
                 <span className="edition-text">
@@ -1149,6 +1487,13 @@
                             {bean.caffeine === "decaf" ? "Decaf" : "Caffeine"}
                           </span>
                         </div>
+                        {bean.countries && bean.countries.length > 0 && (
+                          <div className="country-display-chips" style={{marginTop:"5px"}}>
+                            {bean.countries.map(c => (
+                              <span key={c} className="country-display-chip">{c}</span>
+                            ))}
+                          </div>
+                        )}
                         {bean.instructions ? (
                           <div className="instructions-preview">{bean.instructions}</div>
                         ) : null}
@@ -1158,7 +1503,7 @@
                 ))
               )}
             </>
-          )}
+          ) : null}
 
           {/* Settings / Export / Import Modal */}
           {showSettings && (
@@ -1305,6 +1650,14 @@
                         ○ Decaf
                       </div>
                     </div>
+                  </div>
+
+                  <div className="form-field">
+                    <label className="form-label">Country of Origin</label>
+                    <CountrySelector
+                      selected={form.countries || []}
+                      onChange={(countries) => setForm({ ...form, countries })}
+                    />
                   </div>
 
                   <div className="form-field">
