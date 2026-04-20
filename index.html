@@ -719,8 +719,63 @@
     }
     .btn-edit:hover, .btn-edit:active { background: #333; }
 
-    /* 3-column tab bar */
-    .tab-bar { grid-template-columns: 1fr 1fr 1fr; }
+    /* 2-column tab bar (origin moved to bottom) */
+    .tab-bar { grid-template-columns: 1fr 1fr; }
+
+    /* Sticky bottom origin bar */
+    .origin-bar {
+      position: sticky;
+      bottom: 0;
+      z-index: 100;
+      border-top: 3px solid #111111;
+      background: #F9F9F7;
+    }
+    .btn-origin {
+      width: 100%;
+      background: #F9F9F7;
+      border: none;
+      padding: 11px 16px;
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #737373;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.1s, color 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-origin:hover, .btn-origin:active { background: #F0F0EE; }
+    .btn-origin.active {
+      background: #111111;
+      color: #F9F9F7;
+    }
+    .origin-close-bar {
+      padding: 10px 16px;
+      border-bottom: 1px solid #111111;
+      background: #F0F0EE;
+    }
+    .btn-origin-close {
+      background: none;
+      border: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #111111;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-origin-close:hover, .btn-origin-close:active { color: #CC0000; }
 
     /* Country selector */
     .country-selected-chips {
@@ -1223,6 +1278,7 @@
       const [detailId, setDetailId] = useState(null);
       const [showSettings, setShowSettings] = useState(false);
       const [importMsg, setImportMsg] = useState(null); // { type: "success"|"error", text }
+      const [showOrigin, setShowOrigin] = useState(false);
 
       useEffect(() => {
         saveData(data);
@@ -1249,7 +1305,7 @@
         );
       };
 
-      const currentBeans = data[activeTab];
+      const currentBeans = data[activeTab] || [];
 
       const grouped = ROAST_ORDER.reduce((acc, roast) => {
         const items = currentBeans
@@ -1305,6 +1361,7 @@
       const switchTab = (tab) => {
         setActiveTab(tab);
         setDetailId(null);
+        setShowOrigin(false);
       };
 
       return (
@@ -1325,11 +1382,10 @@
           <div className="tab-bar">
             <button className={`tab-btn ${activeTab === "pourover" ? "active" : ""}`} onClick={() => switchTab("pourover")}>▲ Pour Over</button>
             <button className={`tab-btn ${activeTab === "espresso" ? "active" : ""}`} onClick={() => switchTab("espresso")}>◉ Espresso</button>
-            <button className={`tab-btn ${activeTab === "origin"   ? "active" : ""}`} onClick={() => switchTab("origin")}>⊕ By Origin</button>
           </div>
 
           {/* ── Origin view ─────────────────────────────────────────────── */}
-          {activeTab === "origin" && (() => {
+          {showOrigin && (() => {
             const allBeans = [
               ...data.pourover.map(b => ({ ...b, method: "Pour Over" })),
               ...data.espresso.map(b => ({ ...b, method: "Espresso"  })),
@@ -1356,6 +1412,11 @@
 
             return (
               <>
+                <div className="origin-close-bar">
+                  <button className="btn-origin-close" onClick={() => setShowOrigin(false)}>
+                    ← Back to {activeTab === "pourover" ? "Pour Over" : "Espresso"}
+                  </button>
+                </div>
                 <div className="origin-summary-bar">
                   <span className="origin-summary-text">{totalCountries} ORIGINS · {allBeans.length} TOTAL ENTRIES</span>
                   <span className="origin-summary-text">ALL METHODS</span>
@@ -1405,7 +1466,7 @@
           })()}
 
           {/* Detail view */}
-          {activeTab !== "origin" && detailBean ? (
+          {!showOrigin && detailBean ? (
             <>
               <div className="detail-back">
                 <button className="btn-back" onClick={() => setDetailId(null)}>
@@ -1447,7 +1508,7 @@
                 <button className="btn-edit" onClick={() => openEdit(detailBean)}>Edit Entry</button>
               </div>
             </>
-          ) : activeTab !== "origin" ? (
+          ) : !showOrigin ? (
             <>
               <div className="edition-bar">
                 <span className="edition-text">
@@ -1504,6 +1565,15 @@
               )}
             </>
           ) : null}
+
+          {/* Sticky bottom origin toggle */}
+          {!showOrigin && (
+            <div className="origin-bar">
+              <button className="btn-origin" onClick={() => { setDetailId(null); setShowOrigin(true); }}>
+                ⊕ View by Origin
+              </button>
+            </div>
+          )}
 
           {/* Settings / Export / Import Modal */}
           {showSettings && (
