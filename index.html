@@ -719,6 +719,67 @@
       border-right: none;
     }
 
+    /* Notes section — small, low-emphasis footer */
+    .notes-section {
+      border-top: 4px double #111111;
+      background: #F0F0EE;
+      margin-top: 8px;
+    }
+    .notes-header {
+      padding: 9px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .notes-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #525252;
+    }
+    .notes-toggle {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: #737373;
+      letter-spacing: 0.05em;
+    }
+    .notes-header:hover .notes-toggle,
+    .notes-header:active .notes-toggle { color: #CC0000; }
+    .notes-body {
+      padding: 4px 16px 14px;
+      border-top: 1px solid #E5E5E0;
+    }
+    .notes-textarea {
+      width: 100%;
+      background: #F9F9F7;
+      border: 1px solid #E5E5E0;
+      border-bottom: 2px solid #111111;
+      padding: 10px 12px;
+      font-family: 'Lora', serif;
+      font-size: 14px; /* under 16 ok in textarea but keep readable */
+      color: #111111;
+      outline: none;
+      border-radius: 0;
+      resize: vertical;
+      min-height: 110px;
+      line-height: 1.6;
+      margin-top: 10px;
+      -webkit-appearance: none;
+    }
+    .notes-textarea:focus { border-bottom-color: #CC0000; }
+    .notes-help {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: #A3A3A3;
+      margin-top: 6px;
+      letter-spacing: 0.05em;
+    }
+
     /* MASL altitude chip / readout */
     .country-display-chip.masl-chip {
       border-color: #8B5E3C;
@@ -1054,6 +1115,7 @@
     const SAMPLE_DATA = {
       pourover: [],
       espresso: [],
+      notes: "",
     };
 
     function loadData() {
@@ -1288,11 +1350,12 @@
           // Accept both raw shape and exported shape with _meta keys
           const pourover = Array.isArray(parsed.pourover) ? parsed.pourover : [];
           const espresso = Array.isArray(parsed.espresso) ? parsed.espresso : [];
+          const notes    = typeof parsed.notes === "string" ? parsed.notes : undefined;
           if (pourover.length === 0 && espresso.length === 0) {
             onError("No valid entries found in this file.");
             return;
           }
-          onSuccess({ pourover, espresso });
+          onSuccess({ pourover, espresso, notes });
         } catch {
           onError("Could not read file. Make sure it's a Coffee Gazette backup.");
         }
@@ -1311,6 +1374,7 @@
       const [importMsg, setImportMsg] = useState(null); // { type: "success"|"error", text }
       const [showOrigin, setShowOrigin] = useState(false);
       const [showAltitude, setShowAltitude] = useState(false);
+      const [notesOpen, setNotesOpen] = useState(false);
 
       useEffect(() => {
         saveData(data);
@@ -1326,7 +1390,11 @@
         importData(
           file,
           (newData) => {
-            setData(newData);
+            setData(prev => ({
+              pourover: newData.pourover,
+              espresso: newData.espresso,
+              notes: newData.notes !== undefined ? newData.notes : (prev.notes || ""),
+            }));
             setImportMsg({ type: "success", text: `Imported ${newData.pourover.length + newData.espresso.length} entries successfully.` });
             e.target.value = "";
           },
@@ -1708,6 +1776,25 @@
                   </div>
                 ))
               )}
+
+              {/* ── Notes section (small, collapsible footer) ────────────── */}
+              <div className="notes-section">
+                <div className="notes-header" onClick={() => setNotesOpen(o => !o)}>
+                  <span className="notes-title">✎ Notes &amp; Bookmarks</span>
+                  <span className="notes-toggle">{notesOpen ? "− Hide" : "+ Show"}</span>
+                </div>
+                {notesOpen && (
+                  <div className="notes-body">
+                    <textarea
+                      className="notes-textarea"
+                      placeholder="Places to buy from, shop hours, ratios you want to remember…"
+                      value={data.notes || ""}
+                      onChange={(e) => setData(prev => ({ ...prev, notes: e.target.value }))}
+                    />
+                    <div className="notes-help">Saved automatically · backed up with your data</div>
+                  </div>
+                )}
+              </div>
             </>
           ) : null}
 
