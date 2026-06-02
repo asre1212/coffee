@@ -79,7 +79,7 @@
     /* Tabs */
     .tab-bar {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       border-bottom: 4px solid #111111;
     }
     .tab-btn {
@@ -673,8 +673,8 @@
     }
     .btn-edit:hover, .btn-edit:active { background: #333; }
 
-    /* 2-column tab bar (origin moved to bottom) */
-    .tab-bar { grid-template-columns: 1fr 1fr; }
+    /* 3-column brew method tab bar (origin moved to bottom) */
+    .tab-bar { grid-template-columns: 1fr 1fr 1fr; }
 
     /* Sticky bottom origin bar */
     .origin-bar {
@@ -903,6 +903,27 @@
       color: #525252;
     }
 
+    .linked-bean-select {
+      width: 100%;
+      background: transparent;
+      border: 1px solid #E5E5E0;
+      border-bottom: 2px solid #111111;
+      padding: 8px 10px;
+      font-family: 'Lora', serif;
+      font-size: 16px;
+      color: #111111;
+      outline: none;
+      border-radius: 0;
+      -webkit-appearance: none;
+    }
+    .linked-bean-help {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: #737373;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
     /* Origin tab view */
     .origin-summary-bar {
       padding: 10px 16px;
@@ -1112,18 +1133,101 @@
 
     const STORAGE_KEY = "coffee-gazette-data-v3";
 
+    const BREW_METHODS = [
+      { key: "pourover", label: "Pour Over", shortLabel: "POUR OVER", icon: "▲" },
+      { key: "espresso", label: "Espresso", shortLabel: "ESPRESSO", icon: "◉" },
+      { key: "frenchpress", label: "French Press", shortLabel: "FRENCH PRESS", icon: "▤" },
+    ];
+    const methodLabel = (key) => (BREW_METHODS.find(m => m.key === key) || BREW_METHODS[0]).label;
+    const methodShortLabel = (key) => (BREW_METHODS.find(m => m.key === key) || BREW_METHODS[0]).shortLabel;
+
     const SAMPLE_DATA = {
       pourover: [],
       espresso: [],
+      frenchpress: [],
+      beans: [],
       notes: "",
     };
+
+    const makeBeanId = () => `bean-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const beanFactsFromEntry = (entry) => ({
+      name: entry.name || "",
+      roaster: entry.roaster || "",
+      countries: Array.isArray(entry.countries) ? entry.countries : [],
+      altitude: entry.altitude || "",
+    });
+    const withBeanFacts = (entry, beansById) => ({
+      ...entry,
+      ...(beansById[entry.beanId] || {}),
+    });
+
+    function normalizeData(raw) {
+      const base = raw && typeof raw === "object" ? raw : {};
+      const beansById = {};
+      const usedKeys = {};
+      const beans = Array.isArray(base.beans) ? base.beans.map(bean => {
+        const id = bean.id || makeBeanId();
+        const normalized = { id, ...beanFactsFromEntry(bean) };
+        beansById[id] = normalized;
+        return normalized;
+      }) : [];
+
+      const normalizeEntry = (entry) => {
+        const beanId = entry.beanId || makeBeanId();
+        if (!beansById[beanId]) {
+          beansById[beanId] = { id: beanId, ...beanFactsFromEntry(entry) };
+          beans.push(beansById[beanId]);
+        }
+        return {
+          ...entry,
+          id: entry.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          beanId,
+          rating: typeof entry.rating === "number" ? entry.rating : 4,
+          roast: entry.roast || "light",
+          caffeine: entry.caffeine || "caffeine",
+          instructions: entry.instructions || "",
+        };
+      };
+
+      const normalized = {
+        beans,
+        notes: typeof base.notes === "string" ? base.notes : "",
+      };
+
+      BREW_METHODS.forEach(method => {
+        normalized[method.key] = Array.isArray(base[method.key])
+          ? base[method.key].map(normalizeEntry)
+          : [];
+      });
+
+      beans.forEach(bean => {
+        const key = [
+          (bean.name || "").trim().toLowerCase(),
+          (bean.roaster || "").trim().toLowerCase(),
+        ].join("|");
+        if (key !== "|" && usedKeys[key]) {
+          const canonicalId = usedKeys[key];
+          BREW_METHODS.forEach(method => {
+            normalized[method.key] = normalized[method.key].map(entry =>
+              entry.beanId === bean.id ? { ...entry, beanId: canonicalId } : entry
+            );
+          });
+        } else if (key !== "|") {
+          usedKeys[key] = bean.id;
+        }
+      });
+
+      const referencedIds = new Set(BREW_METHODS.flatMap(method => normalized[method.key].map(entry => entry.beanId)));
+      normalized.beans = beans.filter(bean => referencedIds.has(bean.id));
+      return normalized;
+    }
 
     function loadData() {
       try {
         const saved = localStorage.getItem(STORAGE_KEY);
-        return saved ? JSON.parse(saved) : SAMPLE_DATA;
+        return normalizeData(saved ? JSON.parse(saved) : SAMPLE_DATA);
       } catch (e) {
-        return SAMPLE_DATA;
+        return normalizeData(SAMPLE_DATA);
       }
     }
 
@@ -1144,6 +1248,7 @@
       instructions: "",
       countries: [],
       altitude: "",
+      beanId: "",
     };
 
     // Parse a free-text MASL string ("1750", "1500-1800", "1500m") into a
@@ -1285,9 +1390,9 @@
     function exportData(data) {
       const payload = {
         _app: "coffee-gazette",
-        _version: 2,
+        _version: 3,
         _exported: new Date().toISOString(),
-        ...data,
+        ...normalizeData(data),
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -1300,8 +1405,12 @@
 
     // ── Export to Excel (.xlsx) ─────────────────────────────────────────────
     function exportToExcel(data) {
-      const toRows = (beans, method) =>
-        beans.map(b => ({
+      const normalized = normalizeData(data);
+      const beansById = Object.fromEntries((normalized.beans || []).map(bean => [bean.id, bean]));
+      const toRows = (entries, method) =>
+        entries.map(entry => {
+          const b = withBeanFacts(entry, beansById);
+          return ({
           "Method":          method,
           "Bean Name":       b.name,
           "Roaster":         b.roaster || "",
@@ -1311,12 +1420,10 @@
           "Altitude (MASL)": b.altitude || "",
           "Rating":          b.rating,
           "Instructions":    b.instructions || "",
-        }));
+        });
+      });
 
-      const allRows = [
-        ...toRows(data.pourover, "Pour Over"),
-        ...toRows(data.espresso, "Espresso"),
-      ];
+      const allRows = BREW_METHODS.flatMap(method => toRows(normalized[method.key], method.label));
 
       const COLS = [10,22,20,12,13,30,16,8,40];
 
@@ -1327,15 +1434,11 @@
       wsAll["!cols"] = COLS.map(w => ({ wch: w }));
       XLSX.utils.book_append_sheet(wb, wsAll, "All Beans");
 
-      // Sheet 2 — Espresso only
-      const wsEsp = XLSX.utils.json_to_sheet(toRows(data.espresso, "Espresso"));
-      wsEsp["!cols"] = COLS.map(w => ({ wch: w }));
-      XLSX.utils.book_append_sheet(wb, wsEsp, "Espresso");
-
-      // Sheet 3 — Pour Over only
-      const wsPo = XLSX.utils.json_to_sheet(toRows(data.pourover, "Pour Over"));
-      wsPo["!cols"] = COLS.map(w => ({ wch: w }));
-      XLSX.utils.book_append_sheet(wb, wsPo, "Pour Over");
+      BREW_METHODS.forEach(method => {
+        const ws = XLSX.utils.json_to_sheet(toRows(normalized[method.key], method.label));
+        ws["!cols"] = COLS.map(w => ({ wch: w }));
+        XLSX.utils.book_append_sheet(wb, ws, method.label);
+      });
 
       const date = new Date().toISOString().slice(0, 10);
       XLSX.writeFile(wb, `coffee-gazette-${date}.xlsx`);
@@ -1348,14 +1451,13 @@
         try {
           const parsed = JSON.parse(e.target.result);
           // Accept both raw shape and exported shape with _meta keys
-          const pourover = Array.isArray(parsed.pourover) ? parsed.pourover : [];
-          const espresso = Array.isArray(parsed.espresso) ? parsed.espresso : [];
-          const notes    = typeof parsed.notes === "string" ? parsed.notes : undefined;
-          if (pourover.length === 0 && espresso.length === 0) {
+          const normalized = normalizeData(parsed);
+          const totalEntries = BREW_METHODS.reduce((sum, method) => sum + normalized[method.key].length, 0);
+          if (totalEntries === 0) {
             onError("No valid entries found in this file.");
             return;
           }
-          onSuccess({ pourover, espresso, notes });
+          onSuccess(normalized);
         } catch {
           onError("Could not read file. Make sure it's a Coffee Gazette backup.");
         }
@@ -1390,12 +1492,12 @@
         importData(
           file,
           (newData) => {
-            setData(prev => ({
-              pourover: newData.pourover,
-              espresso: newData.espresso,
+            setData(prev => normalizeData({
+              ...newData,
               notes: newData.notes !== undefined ? newData.notes : (prev.notes || ""),
             }));
-            setImportMsg({ type: "success", text: `Imported ${newData.pourover.length + newData.espresso.length} entries successfully.` });
+            const totalEntries = BREW_METHODS.reduce((sum, method) => sum + newData[method.key].length, 0);
+            setImportMsg({ type: "success", text: `Imported ${totalEntries} entries successfully.` });
             e.target.value = "";
           },
           (errMsg) => {
@@ -1405,7 +1507,11 @@
         );
       };
 
-      const currentBeans = data[activeTab] || [];
+      const beansById = Object.fromEntries((data.beans || []).map(bean => [bean.id, bean]));
+      const linkedBeanOptions = (data.beans || []).slice().sort((a, b) =>
+        `${a.name} ${a.roaster}`.localeCompare(`${b.name} ${b.roaster}`)
+      );
+      const currentBeans = (data[activeTab] || []).map(entry => withBeanFacts(entry, beansById));
 
       const grouped = ROAST_ORDER.reduce((acc, roast) => {
         const items = currentBeans
@@ -1416,7 +1522,7 @@
       }, {});
 
       const openAdd = () => {
-        setForm(defaultForm);
+        setForm({ ...defaultForm });
         setEditingId(null);
         setShowForm(true);
       };
@@ -1436,22 +1542,41 @@
       const saveForm = () => {
         if (!form.name.trim()) return;
         setData((prev) => {
-          const list = [...prev[activeTab]];
+          const beanId = form.beanId || makeBeanId();
+          const beanFacts = {
+            id: beanId,
+            name: form.name.trim(),
+            roaster: form.roaster.trim(),
+            countries: form.countries || [],
+            altitude: form.altitude || "",
+          };
+          const beans = prev.beans && prev.beans.some(bean => bean.id === beanId)
+            ? prev.beans.map(bean => bean.id === beanId ? { ...bean, ...beanFacts } : bean)
+            : [...(prev.beans || []), beanFacts];
+          const entry = {
+            id: editingId || Date.now().toString(),
+            beanId,
+            roast: form.roast,
+            rating: form.rating,
+            caffeine: form.caffeine,
+            instructions: form.instructions,
+          };
+          const list = [...(prev[activeTab] || [])];
           if (editingId) {
             const idx = list.findIndex((b) => b.id === editingId);
-            if (idx !== -1) list[idx] = { ...form, id: editingId };
+            if (idx !== -1) list[idx] = entry;
           } else {
-            list.push({ ...form, id: Date.now().toString() });
+            list.push(entry);
           }
-          return { ...prev, [activeTab]: list };
+          return normalizeData({ ...prev, beans, [activeTab]: list });
         });
         closeForm();
       };
 
       const deleteBean = (id) => {
-        setData((prev) => ({
+        setData((prev) => normalizeData({
           ...prev,
-          [activeTab]: prev[activeTab].filter((b) => b.id !== id),
+          [activeTab]: (prev[activeTab] || []).filter((b) => b.id !== id),
         }));
         setDetailId(null);
       };
@@ -1463,6 +1588,23 @@
         setDetailId(null);
         setShowOrigin(false);
         setShowAltitude(false);
+      };
+
+      const handleLinkedBeanChange = (beanId) => {
+        if (!beanId) {
+          setForm({ ...form, beanId: "" });
+          return;
+        }
+        const bean = beansById[beanId];
+        if (!bean) return;
+        setForm({
+          ...form,
+          beanId,
+          name: bean.name || "",
+          roaster: bean.roaster || "",
+          countries: bean.countries || [],
+          altitude: bean.altitude || "",
+        });
       };
 
       return (
@@ -1481,16 +1623,25 @@
 
           {/* Tabs */}
           <div className="tab-bar">
-            <button className={`tab-btn ${activeTab === "pourover" ? "active" : ""}`} onClick={() => switchTab("pourover")}>▲ Pour Over</button>
-            <button className={`tab-btn ${activeTab === "espresso" ? "active" : ""}`} onClick={() => switchTab("espresso")}>◉ Espresso</button>
+            {BREW_METHODS.map(method => (
+              <button
+                key={method.key}
+                className={`tab-btn ${activeTab === method.key ? "active" : ""}`}
+                onClick={() => switchTab(method.key)}
+              >
+                {method.icon} {method.label}
+              </button>
+            ))}
           </div>
 
           {/* ── Origin view ─────────────────────────────────────────────── */}
           {showOrigin && (() => {
-            const allBeans = [
-              ...data.pourover.map(b => ({ ...b, method: "Pour Over" })),
-              ...data.espresso.map(b => ({ ...b, method: "Espresso"  })),
-            ];
+            const allBeans = BREW_METHODS.flatMap(method =>
+              (data[method.key] || []).map(entry => ({
+                ...withBeanFacts(entry, beansById),
+                method: method.label,
+              }))
+            );
 
             // Build country → beans map; beans with no countries go under "Unspecified"
             const countryMap = {};
@@ -1515,7 +1666,7 @@
               <>
                 <div className="origin-close-bar">
                   <button className="btn-origin-close" onClick={() => setShowOrigin(false)}>
-                    ← Back to {activeTab === "pourover" ? "Pour Over" : "Espresso"}
+                    ← Back to {methodLabel(activeTab)}
                   </button>
                 </div>
                 <div className="origin-summary-bar">
@@ -1525,7 +1676,7 @@
                 {allBeans.length === 0 ? (
                   <div className="empty-state">
                     <div className="empty-state-title">No beans logged yet.</div>
-                    <div className="empty-state-sub">Add entries in Pour Over or Espresso tabs.</div>
+                    <div className="empty-state-sub">Add entries in any brew method tab.</div>
                   </div>
                 ) : (
                   sortedCountries.map(country => {
@@ -1568,10 +1719,12 @@
 
           {/* ── Altitude (MASL) view ────────────────────────────────────── */}
           {showAltitude && (() => {
-            const allBeans = [
-              ...data.pourover.map(b => ({ ...b, method: "Pour Over" })),
-              ...data.espresso.map(b => ({ ...b, method: "Espresso"  })),
-            ];
+            const allBeans = BREW_METHODS.flatMap(method =>
+              (data[method.key] || []).map(entry => ({
+                ...withBeanFacts(entry, beansById),
+                method: method.label,
+              }))
+            );
 
             // Split into beans with parsed MASL and those without; sort numeric desc
             const withAlt = [];
@@ -1587,7 +1740,7 @@
               <>
                 <div className="origin-close-bar">
                   <button className="btn-origin-close" onClick={() => setShowAltitude(false)}>
-                    ← Back to {activeTab === "pourover" ? "Pour Over" : "Espresso"}
+                    ← Back to {methodLabel(activeTab)}
                   </button>
                 </div>
                 <div className="origin-summary-bar">
@@ -1598,7 +1751,7 @@
                 {allBeans.length === 0 ? (
                   <div className="empty-state">
                     <div className="empty-state-title">No beans logged yet.</div>
-                    <div className="empty-state-sub">Add entries in Pour Over or Espresso tabs.</div>
+                    <div className="empty-state-sub">Add entries in any brew method tab.</div>
                   </div>
                 ) : (
                   <>
@@ -1670,7 +1823,7 @@
             <>
               <div className="detail-back">
                 <button className="btn-back" onClick={() => setDetailId(null)}>
-                  ← Back to {activeTab === "pourover" ? "Pour Over" : "Espresso"}
+                  ← Back to {methodLabel(activeTab)}
                 </button>
               </div>
               <div className="detail-hero">
@@ -1724,7 +1877,7 @@
                 <span className="edition-text">
                   {currentBeans.length} {currentBeans.length === 1 ? "ENTRY" : "ENTRIES"} · BY ROAST &amp; RATING
                 </span>
-                <span className="edition-text">{activeTab === "pourover" ? "POUR OVER" : "ESPRESSO"}</span>
+                <span className="edition-text">{methodShortLabel(activeTab)}</span>
               </div>
 
               <div className="add-bar">
@@ -1825,10 +1978,10 @@
                 <div className="settings-row">
                   <div className="settings-row-title">Export All Data</div>
                   <div className="settings-row-desc">
-                    Downloads a <strong>.json</strong> backup of every entry across both tabs. Save it to Files, iCloud, or AirDrop it to your new iPhone — then import it there.
+                    Downloads a <strong>.json</strong> backup of every entry across all brew method tabs. Save it to Files, iCloud, or AirDrop it to your new iPhone — then import it there.
                   </div>
                   <div className="settings-stat">
-                    {data.pourover.length + data.espresso.length} total entries · {data.pourover.length} pour over · {data.espresso.length} espresso
+                    {BREW_METHODS.reduce((sum, method) => sum + (data[method.key] || []).length, 0)} total entries · {BREW_METHODS.map(method => `${(data[method.key] || []).length} ${method.label.toLowerCase()}`).join(" · ")}
                   </div>
                   <button className="btn-settings-action" onClick={handleExport}>
                     ↓ Download Backup
@@ -1839,7 +1992,7 @@
                 <div className="settings-row">
                   <div className="settings-row-title">Export to Excel</div>
                   <div className="settings-row-desc">
-                    Downloads a <strong>.xlsx</strong> spreadsheet with three sheets — All Beans, Espresso, and Pour Over. Opens in Numbers, Excel, or Google Sheets.
+                    Downloads a <strong>.xlsx</strong> spreadsheet with one all-beans sheet and a sheet for each brew method. Opens in Numbers, Excel, or Google Sheets.
                   </div>
                   <button className="btn-settings-action outline" onClick={() => exportToExcel(data)}>
                     ↓ Download Spreadsheet
@@ -1908,12 +2061,33 @@
               <div className="modal-sheet">
                 <div className="modal-header">
                   <div className="modal-title">
-                    {editingId ? "Edit Entry" : `New ${activeTab === "pourover" ? "Pour Over" : "Espresso"}`}
+                    {editingId ? "Edit Entry" : `New ${methodLabel(activeTab)}`}
                   </div>
                   <button className="modal-close" onClick={closeForm}>✕</button>
                 </div>
 
                 <div className="form-body">
+                  {linkedBeanOptions.length > 0 && (
+                    <div className="form-field">
+                      <label className="form-label">Use Existing Bean</label>
+                      <select
+                        className="linked-bean-select"
+                        value={form.beanId || ""}
+                        onChange={(e) => handleLinkedBeanChange(e.target.value)}
+                      >
+                        <option value="">New bean / unlinked entry</option>
+                        {linkedBeanOptions.map(bean => (
+                          <option key={bean.id} value={bean.id}>
+                            {bean.name || "Unnamed Bean"}{bean.roaster ? ` — ${bean.roaster}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="linked-bean-help">
+                        Pulls shared bean info into this entry. Editing name, roaster, origin, or altitude here updates every linked log.
+                      </div>
+                    </div>
+                  )}
+
                   <div className="form-field">
                     <label className="form-label">Bean Name</label>
                     <input
