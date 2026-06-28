@@ -1156,10 +1156,14 @@
       countries: Array.isArray(entry.countries) ? entry.countries : [],
       altitude: entry.altitude || "",
     });
-    const withBeanFacts = (entry, beansById) => ({
-      ...entry,
-      ...(beansById[entry.beanId] || {}),
-    });
+    const withBeanFacts = (entry, beansById) => {
+      const { id: _beanRecordId, ...beanFacts } = beansById[entry.beanId] || {};
+      return {
+        ...entry,
+        ...beanFacts,
+        id: entry.id,
+      };
+    };
 
     function normalizeData(raw) {
       const base = raw && typeof raw === "object" ? raw : {};
