@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Coffee Gazette — build</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    button, a.dl { font-size: 15px; padding: 8px 16px; }
+    pre { background: #f4f4f4; padding: 12px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Compile src/app.jsx → app.js</h1>
+  <p>
+    Serve the repo root with any static server (e.g. <code>python3 -m http.server</code> from the
+    repo root), open <code>http://localhost:8000/build/compile.html</code>, and click Compile.
+    Then download the result and replace <code>app.js</code> in the repo root.
+  </p>
+  <button id="go">Compile</button>
+  <a id="dl" class="dl" style="display:none" download="app.js">Download app.js</a>
+  <pre id="status"></pre>
+  <script src="babel.min.js"></script>
+  <script>
+    document.getElementById("go").onclick = async () => {
+      const status = document.getElementById("status");
+      status.textContent = "Compiling…";
+      try {
+        const res = await fetch("../src/app.jsx", { cache: "no-store" });
+        if (!res.ok) throw new Error("Could not fetch ../src/app.jsx (" + res.status + ")");
+        const src = await res.text();
+        const out = Babel.transform(src, { presets: ["react"] }).code;
+        const banner = "/* Compiled from src/app.jsx - do not edit directly. Rebuild with build/compile.html */\n";
+        const full = banner + out + "\n";
+        const blob = new Blob([full], { type: "text/javascript" });
+        const a = document.getElementById("dl");
+        a.href = URL.createObjectURL(blob);
+        a.style.display = "inline-block";
+        a.textContent = "Download app.js (" + Math.round(blob.size / 1024) + " KB)";
+        window.__compiled = full;
+        status.textContent = "Compiled OK — " + full.length + " characters.";
+      } catch (e) {
+        status.textContent = "Error: " + (e && e.message ? e.message : e);
+      }
+    };
+  </script>
+</body>
+</html>
