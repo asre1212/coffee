@@ -1,0 +1,13 @@
+name: Apply Coffee Bag Lookup Patch
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Patch runner staged"
