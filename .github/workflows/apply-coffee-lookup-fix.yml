@@ -22,7 +22,8 @@ jobs:
           set -euo pipefail
           cp .codex/coffee-lookup-fix.patch.b64 /tmp/coffee-fix.patch.b64
           actual="$(sha256sum /tmp/coffee-fix.patch.b64 | awk '{print $1}')"
-          expected="8aa9c9837cfe27bfe731c24cf80d5add4508ddd2a4b84ba9ca0739f16533f1a6"
+          expected="6f3a4f953f3007f145a0762f8e536dd5dc734977974ebe88a3de36a4222b9326"
+          echo "patch sha256: $actual"
           test "$actual" = "$expected"
           base64 --decode /tmp/coffee-fix.patch.b64 > /tmp/coffee-fix.patch
           git apply --index --whitespace=nowarn /tmp/coffee-fix.patch
