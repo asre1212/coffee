@@ -4,7 +4,9 @@ const {
   useEffect
 } = React;
 const STORAGE_KEY = "coffee-gazette-data-v3";
-const COFFEE_LOOKUP_ENDPOINT = window.COFFEE_LOOKUP_ENDPOINT || "/api/coffee-lookup";
+const DEFAULT_COFFEE_LOOKUP_ENDPOINT = "/api/coffee-lookup";
+const COFFEE_LOOKUP_ENDPOINT = window.COFFEE_LOOKUP_ENDPOINT || DEFAULT_COFFEE_LOOKUP_ENDPOINT;
+const COFFEE_LOOKUP_SETUP_MESSAGE = "Coffee bag lookup needs a deployed serverless endpoint. GitHub Pages cannot run /api/coffee-lookup; set window.COFFEE_LOOKUP_ENDPOINT to your endpoint URL.";
 const BREW_METHODS = [{
   key: "pourover",
   label: "Pour Over",
@@ -326,6 +328,15 @@ function normalizeLookupResult(payload) {
     sources: Array.isArray(source.sources) ? source.sources.filter(Boolean).slice(0, 5) : [],
     rawText: source.rawText || source.raw_text || ""
   };
+}
+function needsLookupEndpointConfig() {
+  const configured = typeof window.COFFEE_LOOKUP_ENDPOINT === "string" && window.COFFEE_LOOKUP_ENDPOINT.trim();
+  return !configured && window.location.hostname.endsWith(".github.io");
+}
+function lookupErrorMessage(response, payload) {
+  if (payload && payload.error) return payload.error;
+  if ([404, 405, 501].includes(response.status)) return COFFEE_LOOKUP_SETUP_MESSAGE;
+  return "Coffee lookup failed. Check the lookup endpoint logs for details.";
 }
 
 // Parse a free-text MASL string ("1750", "1500-1800", "1500m") into a
@@ -809,6 +820,9 @@ function CoffeeLog() {
       message: "Reading image"
     });
     try {
+      if (needsLookupEndpointConfig()) {
+        throw new Error(COFFEE_LOOKUP_SETUP_MESSAGE);
+      }
       const image = await resizeImageForLookup(file);
       setBagScan(prev => ({
         ...prev,
@@ -829,7 +843,7 @@ function CoffeeLog() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload.error || (response.status === 404 ? "Coffee lookup endpoint is not configured for this deployment." : "Coffee lookup failed."));
+        throw new Error(lookupErrorMessage(response, payload));
       }
       applyLookupResult(payload);
     } catch (err) {

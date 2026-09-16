@@ -106,7 +106,7 @@ function normalizeLookupPayload(payload) {
 }
 
 async function requestLookup({ image, fileName, toolType }) {
-  const model = process.env.OPENAI_MODEL || "gpt-5.6-luna";
+  const model = process.env.OPENAI_MODEL || "gpt-5";
   const prompt = [
     "You help fill a personal coffee log from a coffee bag photo.",
     "Read visible label text, then use web search to identify the exact roasted coffee when possible.",
@@ -146,7 +146,7 @@ async function requestLookup({ image, fileName, toolType }) {
           role: "user",
           content: [
             { type: "input_text", text: prompt },
-            { type: "input_image", image_url: image },
+            { type: "input_image", image_url: image, detail: "high" },
           ],
         },
       ],

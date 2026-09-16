@@ -68,8 +68,9 @@ JSX transform that runs in the browser using the pinned copy in `build/`.
 ## Coffee bag lookup endpoint
 
 The frontend calls `window.COFFEE_LOOKUP_ENDPOINT || "/api/coffee-lookup"`.
-GitHub Pages does not run serverless functions, so deploy `api/coffee-lookup.js`
-on a host such as Vercel and point the static app at that URL if needed:
+GitHub Pages does not run serverless functions, so the lookup button will show
+a setup message there until you deploy `api/coffee-lookup.js` on a host such as
+Vercel and point the static app at that URL:
 
 ```html
 <script>
@@ -80,7 +81,7 @@ on a host such as Vercel and point the static app at that URL if needed:
 The endpoint expects:
 
 - `OPENAI_API_KEY`: required, server-side only
-- `OPENAI_MODEL`: optional, defaults to `gpt-5.6-luna`
+- `OPENAI_MODEL`: optional, defaults to `gpt-5`
 - `COFFEE_LOOKUP_ALLOWED_ORIGIN`: optional CORS origin
 
 ## Deployment
