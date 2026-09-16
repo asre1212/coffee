@@ -14,16 +14,24 @@ the iPhone Home Screen as a standalone app.
   roaster, origin, altitude) updates every entry that uses it
 - Roll-up views by **origin country** and by **altitude**
 - Search entries by name, roaster, origin, altitude, or instructions
+- Optional coffee bag photo lookup that can prefill a new entry and mark
+  fields as found, inferred, conflicting, or not found
 - Notes & bookmarks scratchpad
 - Backup/restore as JSON; export to Excel (.xlsx)
 - Works fully offline once loaded (service worker caches the app shell)
 
 ## Where data lives
 
-All data stays on the device: `localStorage` is the primary store, mirrored to
-IndexedDB on every save as protection against eviction. Nothing is sent to a
-server. Use **⚙ → Download Backup** regularly — the settings sheet shows how
-long it's been since the last backup.
+Normal log data stays on the device: `localStorage` is the primary store,
+mirrored to IndexedDB on every save as protection against eviction. Use **⚙ →
+Download Backup** regularly — the settings sheet shows how long it's been since
+the last backup.
+
+Bag lookup is opt-in per photo. When you tap **Take Photo** or **Import Photo**
+inside the entry form, the selected image is compressed in-browser and sent to
+the configured lookup endpoint so it can read the label and search for matching
+bean details. Nothing is saved until you review the filled fields and tap
+**Log Bean** or **Save Changes**.
 
 To move to a new phone: Download Backup on the old device, open the app on the
 new device, ⚙ → Choose Backup File.
@@ -35,6 +43,7 @@ new device, ⚙ → Choose Backup File.
 | `index.html` | Markup + all CSS; loads the vendored libraries and `app.js` |
 | `src/app.jsx` | **The app source. Edit this file.** |
 | `app.js` | Compiled output of `src/app.jsx` — do not edit by hand |
+| `api/coffee-lookup.js` | Optional serverless lookup endpoint for coffee bag photos |
 | `vendor/` | Pinned local copies of React 18.3.1, ReactDOM, SheetJS 0.18.5 |
 | `sw.js` | Service worker (offline cache) |
 | `manifest.webmanifest`, `icons/` | PWA install metadata |
@@ -55,6 +64,24 @@ not slow down app startup.
 
 There is deliberately no Node/npm toolchain — the "build" is a single Babel
 JSX transform that runs in the browser using the pinned copy in `build/`.
+
+## Coffee bag lookup endpoint
+
+The frontend calls `window.COFFEE_LOOKUP_ENDPOINT || "/api/coffee-lookup"`.
+GitHub Pages does not run serverless functions, so deploy `api/coffee-lookup.js`
+on a host such as Vercel and point the static app at that URL if needed:
+
+```html
+<script>
+  window.COFFEE_LOOKUP_ENDPOINT = "https://your-deployment.example/api/coffee-lookup";
+</script>
+```
+
+The endpoint expects:
+
+- `OPENAI_API_KEY`: required, server-side only
+- `OPENAI_MODEL`: optional, defaults to `gpt-5.6-luna`
+- `COFFEE_LOOKUP_ALLOWED_ORIGIN`: optional CORS origin
 
 ## Deployment
 

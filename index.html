@@ -381,6 +381,161 @@
     }
     .form-textarea:focus { border-bottom-color: #CC0000; }
 
+    /* Bag scan */
+    .scan-panel {
+      border: 1px solid #111111;
+      background: #F0F0EE;
+      margin-bottom: 4px;
+    }
+    .scan-panel-head {
+      padding: 10px 12px;
+      border-bottom: 1px solid #111111;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .scan-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #111111;
+    }
+    .scan-state {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: #737373;
+      text-align: right;
+    }
+    .scan-actions {
+      padding: 10px 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .scan-action {
+      background: #F9F9F7;
+      border: 1px solid #111111;
+      color: #111111;
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 10px 8px;
+      cursor: pointer;
+      transition: background 0.1s, color 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .scan-action:hover, .scan-action:active {
+      background: #111111;
+      color: #F9F9F7;
+    }
+    .scan-action:disabled {
+      color: #A3A3A3;
+      border-color: #A3A3A3;
+      cursor: wait;
+    }
+    .scan-action:disabled:hover, .scan-action:disabled:active {
+      background: #F9F9F7;
+      color: #A3A3A3;
+    }
+    .scan-preview-wrap {
+      padding: 0 12px 10px;
+    }
+    .scan-preview {
+      width: 100%;
+      max-height: 180px;
+      object-fit: cover;
+      display: block;
+      border: 1px solid #E5E5E0;
+      background: #111111;
+    }
+    .scan-message {
+      margin: 0 12px 10px;
+      padding: 8px 10px;
+      font-family: 'Lora', serif;
+      font-size: 12px;
+      line-height: 1.4;
+      border-left: 3px solid #111111;
+      color: #525252;
+      background: #F9F9F7;
+    }
+    .scan-message.error {
+      border-color: #CC0000;
+      color: #CC0000;
+      background: #FFF5F5;
+    }
+    .scan-review {
+      border-top: 1px solid #111111;
+      background: #F9F9F7;
+    }
+    .scan-review-title {
+      padding: 9px 12px 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #737373;
+    }
+    .scan-field-row {
+      display: grid;
+      grid-template-columns: minmax(72px, 0.8fr) minmax(74px, auto) 1.2fr;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      border-top: 1px solid #E5E5E0;
+    }
+    .scan-field-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #525252;
+    }
+    .scan-flag {
+      justify-self: start;
+      font-family: 'Inter', sans-serif;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 2px 5px;
+      border: 1px solid #737373;
+      color: #525252;
+      white-space: nowrap;
+    }
+    .scan-flag.found { border-color: #2E7D32; color: #2E7D32; }
+    .scan-flag.inferred { border-color: #8B5E3C; color: #8B5E3C; }
+    .scan-flag.conflict { border-color: #B25C00; color: #B25C00; }
+    .scan-flag.not-found { border-color: #CC0000; color: #CC0000; }
+    .scan-field-value {
+      font-family: 'Lora', serif;
+      font-size: 12px;
+      color: #111111;
+      line-height: 1.35;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .scan-source-list {
+      padding: 8px 12px 10px;
+      border-top: 1px solid #E5E5E0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .scan-source-link {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: #525252;
+      text-decoration: underline;
+      overflow-wrap: anywhere;
+    }
+
     /* Roast selector */
     .roast-selector {
       display: grid;
