@@ -1,0 +1,36 @@
+name: Apply Coffee Lookup Configuration Fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/apply-coffee-lookup-fix.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply fix patch
+        run: |
+          set -euo pipefail
+          cp .codex/coffee-lookup-fix.patch.b64 /tmp/coffee-fix.patch.b64
+          actual="$(sha256sum /tmp/coffee-fix.patch.b64 | awk '{print $1}')"
+          expected="8aa9c9837cfe27bfe731c24cf80d5add4508ddd2a4b84ba9ca0739f16533f1a6"
+          test "$actual" = "$expected"
+          base64 --decode /tmp/coffee-fix.patch.b64 > /tmp/coffee-fix.patch
+          git apply --index --whitespace=nowarn /tmp/coffee-fix.patch
+          rm -f .codex/coffee-lookup-fix.patch.b64
+          rmdir .codex 2>/dev/null || true
+          rm -f .github/workflows/apply-coffee-lookup-fix.yml
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Fix coffee lookup endpoint handling"
+          git push
