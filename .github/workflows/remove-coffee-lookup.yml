@@ -1,0 +1,90 @@
+name: Remove Coffee Bag Lookup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/remove-coffee-lookup.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  remove:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove lookup code and rebuild app
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+
+          function read(path) {
+            return fs.readFileSync(path, "utf8");
+          }
+
+          function write(path, content) {
+            fs.writeFileSync(path, content);
+          }
+
+          function replace(path, pattern, replacement, label) {
+            const before = read(path);
+            const after = before.replace(pattern, replacement);
+            if (after === before) throw new Error(`No change for ${label} in ${path}`);
+            write(path, after);
+          }
+
+          if (fs.existsSync("api/coffee-lookup.js")) fs.rmSync("api/coffee-lookup.js");
+
+          replace("README.md", /\nBag lookup is opt-in per photo\.[\s\S]*?\*\*Log Bean\*\* or \*\*Save Changes\*\*\.\n/, "\n", "README bag lookup privacy note");
+          replace("README.md", /\n\| `api\/coffee-lookup\.js` \| Optional serverless lookup endpoint for coffee bag photos \|/, "", "README api file row");
+          replace("README.md", /\n## Coffee bag lookup endpoint\n[\s\S]*?\n## Deployment\n/, "\n## Deployment\n", "README lookup endpoint section");
+          write("README.md", read("README.md").replace(/\n{3,}To move to a new phone:/, "\n\nTo move to a new phone:"));
+
+          replace("index.html", /\n    \/\* Bag scan \*\/\n[\s\S]*?\n    \/\* Roast selector \*\//, "\n    /* Roast selector */", "scan styles");
+
+          let src = read("src/app.jsx");
+          const edits = [
+            [/(\n    const STORAGE_KEY = "coffee-gazette-data-v3";\n)(?:    const DEFAULT_COFFEE_LOOKUP_ENDPOINT[\s\S]*?COFFEE_LOOKUP_SETUP_MESSAGE = .*?;\n)/, "$1", "lookup endpoint constants"],
+            [/\n    const EMPTY_SCAN = \{[\s\S]*?\n    function lookupErrorMessage\(response, payload\) \{[\s\S]*?\n    \}\n(?=\n    \/\/ Parse a free-text MASL string)/, "", "scan helpers"],
+            [/\n      const \[bagScan, setBagScan\] = useState\(EMPTY_SCAN\);/, "", "scan state"],
+            [/; setBagScan\(EMPTY_SCAN\)/g, "", "inline scan resets"],
+            [/\n        setBagScan\(EMPTY_SCAN\);/g, "", "scan reset statements"],
+            [/\n      const applyLookupResult = \(lookup\) => \{[\s\S]*?\n      const saveForm = \(\) => \{/, "\n      const saveForm = () => {", "lookup application functions"],
+            [/\n      const scanBusy = bagScan\.state === "reading" \|\| bagScan\.state === "searching";[\s\S]*?        : \[\];\n/, "", "scan derived state"],
+            [/\n                  <div className="scan-panel">[\s\S]*?\n\n                  \{linkedBeanOptions\.length > 0 && \(/, "\n                  {linkedBeanOptions.length > 0 && (", "scan panel jsx"],
+          ];
+
+          for (const [pattern, replacement, label] of edits) {
+            const next = src.replace(pattern, replacement);
+            if (next === src) throw new Error(`No change for ${label} in src/app.jsx`);
+            src = next;
+          }
+          write("src/app.jsx", src);
+
+          replace("sw.js", /coffee-gazette-v4\.1\.0/g, "coffee-gazette-v4.1.1", "service worker cache");
+
+          const Babel = require("./build/babel.min.js");
+          const compiled = Babel.transform(read("src/app.jsx"), { presets: ["react"] }).code;
+          write("app.js", "/* Compiled from src/app.jsx - do not edit directly. Rebuild with build/compile.html */\n" + compiled + "\n");
+          NODE
+
+      - name: Verify removal
+        run: |
+          git diff --check
+          node --check app.js
+          test ! -e api/coffee-lookup.js
+          ! grep -R -n -E 'Bag Lookup|bagScan|scanCoffeeBag|COFFEE_LOOKUP|coffee-lookup|scan-|Lookup Flags|Take Photo|Import Photo|lookup endpoint' README.md src/app.jsx index.html app.js sw.js api 2>/dev/null
+
+      - name: Commit removal and clean up workflow
+        run: |
+          rm -f .github/workflows/remove-coffee-lookup.yml
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Remove coffee bag photo lookup"
+          git push
