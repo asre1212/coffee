@@ -1,6 +1,6 @@
 /* Coffee Gazette service worker — offline-first app shell.
    Bump CACHE_NAME whenever app.js, index.html, or vendor files change. */
-const CACHE_NAME = "coffee-gazette-v4.1.0";
+const CACHE_NAME = "coffee-gazette-v4.1.1";
 const APP_SHELL = [
   "./",
   "./index.html",

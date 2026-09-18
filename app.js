@@ -4,9 +4,6 @@ const {
   useEffect
 } = React;
 const STORAGE_KEY = "coffee-gazette-data-v3";
-const DEFAULT_COFFEE_LOOKUP_ENDPOINT = "/api/coffee-lookup";
-const COFFEE_LOOKUP_ENDPOINT = window.COFFEE_LOOKUP_ENDPOINT || DEFAULT_COFFEE_LOOKUP_ENDPOINT;
-const COFFEE_LOOKUP_SETUP_MESSAGE = "Coffee bag lookup needs a deployed serverless endpoint. GitHub Pages cannot run /api/coffee-lookup; set window.COFFEE_LOOKUP_ENDPOINT to your endpoint URL.";
 const BREW_METHODS = [{
   key: "pourover",
   label: "Pour Over",
@@ -215,129 +212,6 @@ const defaultForm = {
   altitude: "",
   beanId: ""
 };
-const EMPTY_SCAN = {
-  state: "idle",
-  message: "Ready",
-  error: "",
-  previewUrl: "",
-  result: null
-};
-const SCAN_FIELDS = [{
-  key: "name",
-  label: "Bean"
-}, {
-  key: "roaster",
-  label: "Roaster"
-}, {
-  key: "countries",
-  label: "Origin"
-}, {
-  key: "altitude",
-  label: "Altitude"
-}, {
-  key: "roast",
-  label: "Roast"
-}, {
-  key: "caffeine",
-  label: "Caffeine"
-}, {
-  key: "instructions",
-  label: "Notes"
-}];
-const SCAN_STATUS_LABELS = {
-  found: "Found",
-  inferred: "Inferred",
-  conflict: "Conflict",
-  not_found: "Not found"
-};
-const normalizeScanStatus = (status, value) => {
-  const clean = String(status || "").toLowerCase().replace(/_/g, "-");
-  if (clean === "found" || clean === "inferred" || clean === "conflict") return clean;
-  if (clean === "not-found") return "not-found";
-  const hasValue = Array.isArray(value) ? value.length > 0 : String(value || "").trim().length > 0;
-  return hasValue ? "found" : "not-found";
-};
-const scanFlagLabel = status => SCAN_STATUS_LABELS[String(status || "").replace(/-/g, "_")] || "Not found";
-const formatScanValue = value => {
-  if (Array.isArray(value)) return value.length ? value.join(", ") : "No match";
-  const text = String(value || "").trim();
-  return text || "No match";
-};
-function resizeImageForLookup(file) {
-  return new Promise((resolve, reject) => {
-    if (!file || !file.type || !file.type.startsWith("image/")) {
-      reject(new Error("Please choose an image file."));
-      return;
-    }
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Could not read this image."));
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = () => reject(new Error("Could not load this image."));
-      img.onload = () => {
-        const maxSide = 1400;
-        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-        const width = Math.max(1, Math.round(img.width * scale));
-        const height = Math.max(1, Math.round(img.height * scale));
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
-      };
-      img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  });
-}
-function normalizeLookupResult(payload) {
-  const source = payload && typeof payload === "object" ? payload : {};
-  const inputFields = source.fields && typeof source.fields === "object" ? source.fields : {};
-  const fields = {};
-  SCAN_FIELDS.forEach(({
-    key
-  }) => {
-    const raw = inputFields[key] && typeof inputFields[key] === "object" ? inputFields[key] : {
-      value: inputFields[key]
-    };
-    let value = raw.value;
-    if (key === "countries") {
-      value = Array.isArray(value) ? value.filter(Boolean) : String(value || "").split(",").map(v => v.trim()).filter(Boolean);
-    }
-    if (key === "roast") {
-      const roast = String(value || "").toLowerCase();
-      value = ["light", "medium", "dark"].includes(roast) ? roast : "";
-    }
-    if (key === "caffeine") {
-      const caffeine = String(value || "").toLowerCase();
-      value = caffeine.includes("decaf") ? "decaf" : caffeine ? "caffeine" : "";
-    }
-    const status = normalizeScanStatus(raw.status, value);
-    fields[key] = {
-      value,
-      status,
-      confidence: typeof raw.confidence === "number" ? raw.confidence : null,
-      note: raw.note || raw.notes || "",
-      sources: Array.isArray(raw.sources) ? raw.sources : []
-    };
-  });
-  return {
-    summary: source.summary || "",
-    fields,
-    sources: Array.isArray(source.sources) ? source.sources.filter(Boolean).slice(0, 5) : [],
-    rawText: source.rawText || source.raw_text || ""
-  };
-}
-function needsLookupEndpointConfig() {
-  const configured = typeof window.COFFEE_LOOKUP_ENDPOINT === "string" && window.COFFEE_LOOKUP_ENDPOINT.trim();
-  return !configured && window.location.hostname.endsWith(".github.io");
-}
-function lookupErrorMessage(response, payload) {
-  if (payload && payload.error) return payload.error;
-  if ([404, 405, 501].includes(response.status)) return COFFEE_LOOKUP_SETUP_MESSAGE;
-  return "Coffee lookup failed. Check the lookup endpoint logs for details.";
-}
 
 // Parse a free-text MASL string ("1750", "1500-1800", "1500m") into a
 // numeric value used for sorting. Returns null when no number found.
@@ -652,7 +526,6 @@ function CoffeeLog() {
   const [excelBusy, setExcelBusy] = useState(false);
   const [excelMsg, setExcelMsg] = useState(null);
   const [backupAt, setBackupAt] = useState(lastBackupAt);
-  const [bagScan, setBagScan] = useState(EMPTY_SCAN);
   useEffect(() => {
     saveData(data);
   }, [data]);
@@ -684,7 +557,6 @@ function CoffeeLog() {
       if (showForm) {
         setShowForm(false);
         setEditingId(null);
-        setBagScan(EMPTY_SCAN);
       } else if (showSettings) setShowSettings(false);else if (detailId) setDetailId(null);
     };
     window.addEventListener("keydown", onKeyDown);
@@ -757,7 +629,6 @@ function CoffeeLog() {
       ...defaultForm
     });
     setEditingId(null);
-    setBagScan(EMPTY_SCAN);
     setShowForm(true);
   };
   const openEdit = bean => {
@@ -765,97 +636,12 @@ function CoffeeLog() {
       ...bean
     });
     setEditingId(bean.id);
-    setBagScan(EMPTY_SCAN);
     setShowForm(true);
     setDetailId(null);
   };
   const closeForm = () => {
     setShowForm(false);
     setEditingId(null);
-    setBagScan(EMPTY_SCAN);
-  };
-  const applyLookupResult = lookup => {
-    const result = normalizeLookupResult(lookup);
-    setForm(prev => {
-      const next = {
-        ...prev,
-        beanId: prev.beanId || ""
-      };
-      const applyText = key => {
-        const field = result.fields[key];
-        const value = String(field.value || "").trim();
-        if (value && field.status !== "not-found") next[key] = value;
-      };
-      applyText("name");
-      applyText("roaster");
-      applyText("altitude");
-      applyText("instructions");
-      const countries = result.fields.countries.value;
-      if (Array.isArray(countries) && countries.length && result.fields.countries.status !== "not-found") {
-        next.countries = countries;
-      }
-      const roast = result.fields.roast.value;
-      if (["light", "medium", "dark"].includes(roast) && result.fields.roast.status !== "not-found") {
-        next.roast = roast;
-      }
-      const caffeine = result.fields.caffeine.value;
-      if (["caffeine", "decaf"].includes(caffeine) && result.fields.caffeine.status !== "not-found") {
-        next.caffeine = caffeine;
-      }
-      return next;
-    });
-    setBagScan(prev => ({
-      ...prev,
-      state: "done",
-      message: "Lookup complete",
-      error: "",
-      result
-    }));
-  };
-  const scanCoffeeBag = async (file, inputEl) => {
-    if (!file) return;
-    setBagScan({
-      ...EMPTY_SCAN,
-      state: "reading",
-      message: "Reading image"
-    });
-    try {
-      if (needsLookupEndpointConfig()) {
-        throw new Error(COFFEE_LOOKUP_SETUP_MESSAGE);
-      }
-      const image = await resizeImageForLookup(file);
-      setBagScan(prev => ({
-        ...prev,
-        state: "searching",
-        message: "Searching online",
-        previewUrl: image
-      }));
-      const response = await fetch(COFFEE_LOOKUP_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          image,
-          fileName: file.name || "coffee-bag.jpg",
-          mimeType: "image/jpeg"
-        })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(lookupErrorMessage(response, payload));
-      }
-      applyLookupResult(payload);
-    } catch (err) {
-      setBagScan(prev => ({
-        ...prev,
-        state: "error",
-        message: "Lookup failed",
-        error: err.message || "Coffee lookup failed."
-      }));
-    } finally {
-      if (inputEl) inputEl.value = "";
-    }
   };
   const saveForm = () => {
     if (!form.name.trim()) return;
@@ -933,10 +719,6 @@ function CoffeeLog() {
       altitude: bean.altitude || ""
     });
   };
-  const scanBusy = bagScan.state === "reading" || bagScan.state === "searching";
-  const scanSources = bagScan.result ? Array.from(new Set([...(bagScan.result.sources || []), ...SCAN_FIELDS.flatMap(({
-    key
-  }) => bagScan.result.fields[key].sources || [])])).slice(0, 5) : [];
   return /*#__PURE__*/React.createElement("div", {
     className: "app"
   }, /*#__PURE__*/React.createElement("div", {
@@ -1406,77 +1188,7 @@ function CoffeeLog() {
     onClick: closeForm
   }, "\u2715")), /*#__PURE__*/React.createElement("div", {
     className: "form-body"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "scan-panel"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "scan-panel-head"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "scan-title"
-  }, "Bag Lookup"), /*#__PURE__*/React.createElement("div", {
-    className: "scan-state"
-  }, bagScan.message)), /*#__PURE__*/React.createElement("div", {
-    className: "scan-actions"
-  }, /*#__PURE__*/React.createElement("button", {
-    type: "button",
-    className: "scan-action",
-    disabled: scanBusy,
-    onClick: () => document.getElementById("bag-scan-camera").click()
-  }, "Take Photo"), /*#__PURE__*/React.createElement("button", {
-    type: "button",
-    className: "scan-action",
-    disabled: scanBusy,
-    onClick: () => document.getElementById("bag-scan-import").click()
-  }, "Import Photo")), /*#__PURE__*/React.createElement("input", {
-    type: "file",
-    accept: "image/*",
-    capture: "environment",
-    className: "import-file-input",
-    id: "bag-scan-camera",
-    onChange: e => scanCoffeeBag(e.target.files[0], e.target)
-  }), /*#__PURE__*/React.createElement("input", {
-    type: "file",
-    accept: "image/*",
-    className: "import-file-input",
-    id: "bag-scan-import",
-    onChange: e => scanCoffeeBag(e.target.files[0], e.target)
-  }), bagScan.previewUrl && /*#__PURE__*/React.createElement("div", {
-    className: "scan-preview-wrap"
-  }, /*#__PURE__*/React.createElement("img", {
-    className: "scan-preview",
-    src: bagScan.previewUrl,
-    alt: "Coffee bag preview"
-  })), bagScan.error && /*#__PURE__*/React.createElement("div", {
-    className: "scan-message error"
-  }, bagScan.error), bagScan.result && /*#__PURE__*/React.createElement("div", {
-    className: "scan-review"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "scan-review-title"
-  }, "Lookup Flags"), bagScan.result.summary && /*#__PURE__*/React.createElement("div", {
-    className: "scan-message"
-  }, bagScan.result.summary), SCAN_FIELDS.map(({
-    key,
-    label
-  }) => {
-    const field = bagScan.result.fields[key];
-    return /*#__PURE__*/React.createElement("div", {
-      key: key,
-      className: "scan-field-row"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "scan-field-label"
-    }, label), /*#__PURE__*/React.createElement("div", {
-      className: `scan-flag ${field.status}`
-    }, scanFlagLabel(field.status)), /*#__PURE__*/React.createElement("div", {
-      className: "scan-field-value"
-    }, formatScanValue(field.value)));
-  }), scanSources.length > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "scan-source-list"
-  }, scanSources.map((url, idx) => /*#__PURE__*/React.createElement("a", {
-    key: `${url}-${idx}`,
-    className: "scan-source-link",
-    href: url,
-    target: "_blank",
-    rel: "noreferrer"
-  }, url))))), linkedBeanOptions.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, linkedBeanOptions.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "form-field"
   }, /*#__PURE__*/React.createElement("label", {
     className: "form-label",
