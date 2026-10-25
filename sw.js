@@ -1,6 +1,6 @@
 /* Coffee Gazette service worker — offline-first app shell.
    Bump CACHE_NAME whenever app.js, index.html, or vendor files change. */
-const CACHE_NAME = "coffee-gazette-v4.1.1";
+const CACHE_NAME = "coffee-gazette-v4.1.2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -25,7 +25,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith("coffee-gazette-") && k !== CACHE_NAME).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -65,3 +65,4 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+

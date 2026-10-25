@@ -1182,8 +1182,229 @@
     .settings-stat.backup-warn { color: #B45309; font-weight: 600; }
     .btn-settings-action:disabled { opacity: 0.5; cursor: default; }
   </style>
+<!-- Seasonal launch splash: self-contained for reliable cached startup. -->
+<style id="seasonal-splash-styles">
+#seasonal-splash {
+  --sp-bg:#f4eee3; --sp-ink:#32261e; --sp-accent:#a56440; --sp-soft:#e8d5b7;
+  position:fixed; inset:0; z-index:2147483647; width:100%; height:100%;
+  max-width:none; max-height:none; margin:0; border:0; padding:0;
+  background:var(--sp-bg); color:var(--sp-ink); overflow:hidden;
+  box-sizing:border-box; overscroll-behavior:none;
+  animation:sp-exit 2000ms linear both;
+}
+#seasonal-splash::backdrop { background:var(--sp-bg); }
+#seasonal-splash *, #seasonal-splash *::before, #seasonal-splash *::after { box-sizing:border-box; }
+#seasonal-splash .sp-content {
+  position:relative; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; width:min(100%,480px); height:100%; margin:auto;
+  padding:max(28px,env(safe-area-inset-top)) 28px max(28px,env(safe-area-inset-bottom));
+  text-align:center; font-family:Georgia,'Times New Roman',serif;
+}
+#seasonal-splash .sp-kicker, #seasonal-splash .sp-season, #seasonal-splash .sp-foot {
+  font:500 10px/1.5 -apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  letter-spacing:.23em; text-transform:uppercase;
+}
+#seasonal-splash .sp-kicker { margin:0 0 25px; opacity:.76; }
+#seasonal-splash .sp-brand { font-size:52px; line-height:.96; font-weight:400; letter-spacing:-.04em; margin:0; color:inherit; }
+#seasonal-splash .sp-season { display:flex; align-items:center; gap:12px; margin:20px 0 0; color:var(--sp-accent); letter-spacing:.14em; }
+#seasonal-splash .sp-season::before,#seasonal-splash .sp-season::after { content:''; height:1px; width:24px; background:currentColor; opacity:.6; }
+#seasonal-splash .sp-art { width:min(74vw,300px); height:min(74vw,300px); margin:12px 0 4px; flex-shrink:0; }
+#seasonal-splash .sp-art svg { display:block; width:100%; height:100%; overflow:visible; }
+#seasonal-splash .sp-tagline { font:italic 22px/1.25 Georgia,'Times New Roman',serif; letter-spacing:-.02em; margin:8px 0 0; }
+#seasonal-splash .sp-foot { margin:18px 0 0; font-size:9px; letter-spacing:.19em; opacity:.65; }
+#seasonal-splash .sp-progress { width:54px; height:2px; background:var(--sp-soft); overflow:hidden; margin-top:26px; }
+#seasonal-splash .sp-progress::after { content:''; display:block; height:100%; background:var(--sp-accent); transform-origin:left; animation:sp-progress 1840ms linear both; }
+#seasonal-splash[data-app="coffee"] .sp-brand { font-weight:700; font-size:45px; line-height:.97; letter-spacing:-.055em; max-width:290px; padding:14px 0; border-block:2px solid var(--sp-ink); }
+#seasonal-splash[data-app="coffee"] .sp-kicker { font-family:ui-monospace,Menlo,monospace; font-size:9px; margin-bottom:15px; }
+#seasonal-splash[data-app="coffee"] .sp-content::before { content:''; position:absolute; inset:18px; border:1px solid var(--sp-ink); opacity:.18; pointer-events:none; }
+#seasonal-splash[data-app="wine"] .sp-brand { font-size:70px; }
+#seasonal-splash[data-app="wine"] .sp-art { width:min(78vw,320px); height:min(78vw,320px); }
+#seasonal-splash[data-app="hotel"] .sp-brand { font-size:45px; max-width:260px; line-height:1.08; }
+#seasonal-splash[data-app="hotel"] .sp-content::before { content:''; position:absolute; inset:24px; border:1px solid var(--sp-accent); opacity:.3; pointer-events:none; }
+#seasonal-splash .sp-steam { fill:none; stroke:var(--sp-accent); stroke-width:2.5; stroke-linecap:round; animation:sp-steam 1600ms ease-in-out both; }
+#seasonal-splash .sp-steam:nth-child(2) { animation-delay:120ms; }
+#seasonal-splash .sp-steam:nth-child(3) { animation-delay:240ms; }
+#seasonal-splash .sp-cup { animation:sp-rise 750ms cubic-bezier(.2,.7,.2,1) both; }
+#seasonal-splash .sp-bean { transform-box:fill-box; transform-origin:center; animation:sp-bean 1200ms ease-out both; }
+#seasonal-splash .sp-glass { transform-origin:150px 260px; animation:sp-swirl 1700ms ease-in-out both; }
+#seasonal-splash .sp-liquid { transform-origin:150px 150px; animation:sp-liquid 1500ms ease-in-out both; }
+#seasonal-splash .sp-door { transform-origin:99px 210px; animation:sp-door 1300ms cubic-bezier(.2,.7,.2,1) both; }
+#seasonal-splash .sp-key { transform-origin:218px 132px; animation:sp-key 1700ms cubic-bezier(.2,.7,.2,1) both; }
+#seasonal-splash .sp-detail { transform-box:fill-box; transform-origin:center; animation:sp-detail 1250ms ease-out both; }
+@keyframes sp-exit { 0%,92% { opacity:1; visibility:visible; } 100% { opacity:0; visibility:hidden; } }
+@keyframes sp-progress { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+@keyframes sp-rise { from { opacity:0; transform:translateY(15px); } to { opacity:1; transform:translateY(0); } }
+@keyframes sp-steam { 0% { opacity:0; transform:translateY(12px); } 45%,75% { opacity:.8; } 100% { opacity:.4; transform:translateY(-9px); } }
+@keyframes sp-bean { from { opacity:0; transform:translate(8px,-18px) rotate(-40deg); } to { opacity:1; transform:translate(0,0) rotate(0); } }
+@keyframes sp-swirl { 0% { transform:rotate(-9deg); opacity:0; } 30% { opacity:1; transform:rotate(7deg); } 65% { transform:rotate(-4deg); } 100% { transform:rotate(0); } }
+@keyframes sp-liquid { 0% { transform:translateY(13px) rotate(7deg); } 40% { transform:translateY(-3px) rotate(-5deg); } 100% { transform:translateY(0) rotate(0); } }
+@keyframes sp-door { from { transform:scaleX(1); } to { transform:scaleX(.38); } }
+@keyframes sp-key { 0% { opacity:0; transform:translate(14px,-18px) rotate(-18deg); } 35% { opacity:1; transform:rotate(10deg); } 70% { transform:rotate(-5deg); } 100% { transform:rotate(0); } }
+@keyframes sp-detail { from { opacity:0; transform:scale(.8) translateY(7px); } to { opacity:1; transform:scale(1) translateY(0); } }
+@media(max-height:650px) {
+  #seasonal-splash .sp-art,#seasonal-splash[data-app="wine"] .sp-art { width:210px; height:210px; margin-block:0; }
+  #seasonal-splash .sp-kicker { margin-bottom:12px; }
+  #seasonal-splash .sp-brand,#seasonal-splash[data-app="coffee"] .sp-brand,#seasonal-splash[data-app="hotel"] .sp-brand { font-size:36px; }
+  #seasonal-splash .sp-season { margin-top:12px; }
+  #seasonal-splash .sp-progress { margin-top:14px; }
+}
+@media(max-height:450px) {
+  #seasonal-splash .sp-content { display:grid; width:min(100%,650px); grid-template-columns:1fr 1fr; gap:8px 24px; align-content:center; }
+  #seasonal-splash .sp-art,#seasonal-splash[data-app="wine"] .sp-art { grid-column:1; grid-row:1/7; width:190px; height:190px; justify-self:center; }
+  #seasonal-splash .sp-kicker,#seasonal-splash .sp-brand,#seasonal-splash .sp-season,#seasonal-splash .sp-tagline,#seasonal-splash .sp-foot,#seasonal-splash .sp-progress { grid-column:2; margin:0; justify-self:center; }
+  #seasonal-splash .sp-foot { display:none; }
+}
+@media(prefers-reduced-motion:reduce) {
+  #seasonal-splash { animation:sp-still-exit 2000ms step-end both; }
+  #seasonal-splash .sp-art *,#seasonal-splash .sp-progress::after { animation:none!important; }
+  #seasonal-splash .sp-door { transform:scaleX(.38); }
+  #seasonal-splash .sp-progress::after { transform:scaleX(1); }
+}
+@keyframes sp-still-exit { 0% { visibility:visible; } 100% { visibility:hidden; } }
+</style>
 </head>
 <body>
+<script id="seasonal-splash-script">
+/* Seasonal launch artwork. No saved journal data is read or written. */
+(function () {
+  'use strict';
+  const config = {"id":"coffee","title":"The Coffee Gazette","kicker":"YOUR DAILY RITUAL","footer":"BREW · TASTE · REMEMBER","palettes":{"newyear":["#192738","#fff0d3","#dcba72","#3c4c60"],"christmas":["#173c32","#fff3dc","#d7b675","#3f5d48"],"halloween":["#f5e6cf","#352834","#99542e","#e8c49a"],"valentine":["#f7e9eb","#663948","#a85870","#e6c5ce"],"july4":["#f5f0e6","#283f59","#a84945","#cbd2d9"],"generic":["#f4eee3","#32261e","#965a33","#e7d8be"],"winter":["#f0ede6","#333b38","#6f765c","#d7dbce"],"spring":["#f0f1e6","#394337","#7e7952","#d9dfc3"],"summer":["#fbf1dc","#493826","#b27335","#efdaad"],"autumn":["#f4e8d6","#4c3424","#a3542e","#e4c49d"]},"taglines":{"generic":"Good days start here.","winter":"Warm hands. A good cup.","spring":"A fresh bloom in every cup.","summer":"Slow mornings. Bright brews.","autumn":"A warmer kind of ritual.","halloween":"Something good is brewing.","christmas":"Comfort, by the cup.","newyear":"A fresh start. A fresh brew.","valentine":"Brewed with a little love.","july4":"A bright little morning."}};
+  const DURATION = 2000;
+  const themes = {
+    generic: ['The everyday edition', 'A moment worth keeping.'],
+    winter: ['Winter', 'A little warmth.'],
+    spring: ['Spring', 'Something fresh awaits.'],
+    summer: ['Summer', 'Take the slow way.'],
+    autumn: ['Autumn', 'Savor the change.'],
+    halloween: ['Halloween', 'A little after-dark magic.'],
+    christmas: ['Christmas', 'A season to remember.'],
+    newyear: ['New Year', 'To new beginnings.'],
+    valentine: ['Valentine’s Day', 'For the love of it.'],
+    july4: ['July 4th', 'A little celebration.']
+  };
+  function themeForDate(date) {
+    if (!Number.isFinite(date.getTime())) return 'generic';
+    const parts = new Intl.DateTimeFormat('en-US', {timeZone:'America/New_York', month:'numeric', day:'numeric'}).formatToParts(date);
+    const month = Number(parts.find(p => p.type === 'month').value);
+    const day = Number(parts.find(p => p.type === 'day').value);
+    const md = month * 100 + day;
+    if (md >= 1227 || md <= 103) return 'newyear';
+    if (md >= 207 && md <= 215) return 'valentine';
+    if (md >= 627 && md <= 707) return 'july4';
+    if (md >= 1018 && md <= 1101) return 'halloween';
+    if (md >= 1210 && md <= 1226) return 'christmas';
+    if (month >= 3 && month <= 5) return 'spring';
+    if (month >= 6 && month <= 8) return 'summer';
+    if (month >= 9 && month <= 11) return 'autumn';
+    return 'winter';
+  }
+  function emblem(id) {
+    // All emblems share a 40 × 40 viewBox; they live on a cup, bottle label or key tag.
+    const g = '<g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">';
+    const star = '<path d="m20 4 4 10 11 1-8 7 2 11-9-6-9 6 2-11-8-7 11-1Z"/>';
+    const art = {
+      generic: '<path d="M12 28C3 17 17 4 28 12c9 11-5 24-16 16Z"/><path d="M13 28c-2-9 15-8 14-17"/>',
+      winter: '<path d="M20 3v34M5 11l30 18M5 29 35 11M14 7l6 6 6-6M14 33l6-6 6 6M6 18l8-2-1-8M34 22l-8 2 1 8M6 22l8 2-1 8M34 18l-8-2 1-8"/>',
+      spring: '<path d="M20 22v15m0-5c-9 0-12-5-12-5 7-2 12 5 12 5m0-2c8 0 11-5 11-5-7-1-11 5-11 5"/><path d="M20 9c-9-16-19 2-8 6-14 4 1 17 8 7 7 10 22-3 8-7C39 11 29-7 20 9Z"/><circle cx="20" cy="15" r="4"/>',
+      summer: '<circle cx="20" cy="20" r="8"/><path d="M20 2v5m0 26v5M2 20h5m26 0h5M7 7l4 4m18 18 4 4M7 33l4-4m18-18 4-4"/>',
+      autumn: '<path d="M30 5C9 4 2 20 12 29S36 23 30 5ZM8 35 28 10m-8 10-8-1m11-3 1 9"/>',
+      halloween: '<path d="M20 12q-3-7 4-8"/><ellipse cx="20" cy="24" rx="16" ry="12"/><ellipse cx="20" cy="24" rx="8" ry="12"/><path d="m11 22 4-4 3 5m4 0 3-5 4 4m-15 5q6 6 12 0"/>',
+      christmas: '<path d="m20 5 10 13h-5l10 13H5l10-13h-5ZM20 31v6m-7-13 14 3"/><circle cx="20" cy="4" r="2"/>',
+      newyear: star + '<path d="M3 3l3 3m28-3-3 3M4 34l-2 3m34-3 2 3"/>',
+      valentine: '<path d="M20 34C10 27 3 21 3 13 3 3 15 0 20 10 25 0 37 3 37 13c0 8-7 14-17 21Z"/>',
+      july4: star + '<path d="M8 37h24M12 2l-3-2m19 2 3-2"/>'
+    };
+    return g + (art[id] || art.generic) + '</g>';
+  }
+  function artwork(id) {
+    const badge = emblem(id);
+    const top = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" aria-hidden="true" focusable="false">';
+    if (config.id === 'coffee') return top + `
+      <circle cx="150" cy="160" r="100" fill="var(--sp-soft)" opacity=".35"/>
+      <path d="M40 249h220M56 255h188" stroke="var(--sp-ink)" stroke-width=".7" opacity=".3"/>
+      <g class="sp-cup"><ellipse cx="145" cy="234" rx="88" ry="12" fill="var(--sp-soft)" stroke="var(--sp-ink)" stroke-width="1.4"/>
+      <path d="M207 143h12c37 0 34 58-5 58h-12" fill="none" stroke="var(--sp-ink)" stroke-width="9"/>
+      <path d="M207 143h12c37 0 34 58-5 58h-12" fill="none" stroke="var(--sp-bg)" stroke-width="5"/>
+      <path d="M77 133h133l-10 66q-5 31-56 32-51-1-57-32Z" fill="var(--sp-bg)" stroke="var(--sp-ink)" stroke-width="2"/>
+      <path d="m92 149 6 45q3 19 18 23" fill="none" stroke="var(--sp-soft)" stroke-width="5"/>
+      <ellipse cx="144" cy="133" rx="67" ry="15" fill="var(--sp-soft)" stroke="var(--sp-ink)" stroke-width="2"/>
+      <ellipse cx="144" cy="135" rx="58" ry="9" fill="var(--sp-ink)"/><path d="M108 135q26-9 61-1" fill="none" stroke="var(--sp-accent)" stroke-width="2"/>
+      <g transform="translate(125 163)" color="var(--sp-accent)">${badge}</g></g>
+      <g><path class="sp-steam" d="M119 109c-18-22 19-24 2-47"/><path class="sp-steam" d="M144 103c-18-24 19-27 3-51"/><path class="sp-steam" d="M169 109c-17-21 18-23 4-45"/></g>
+      <g class="sp-bean" fill="var(--sp-ink)"><ellipse cx="233" cy="232" rx="9" ry="14" transform="rotate(40 233 232)"/><path d="M241 222q-11 6-16 20" fill="none" stroke="var(--sp-bg)" stroke-width="1.5"/></g></svg>`;
+    if (config.id === 'wine') return top + `
+      <rect x="51" y="25" width="198" height="244" rx="99" fill="var(--sp-soft)" opacity=".25"/>
+      <path d="M70 226V98a80 80 0 0 1 160 0v128" fill="none" stroke="var(--sp-accent)" stroke-width=".8" opacity=".45"/>
+      <g class="sp-detail"><path d="M210 81V48h19v33l10 18v132h-39V99Z" fill="var(--sp-soft)" stroke="var(--sp-accent)" stroke-width="1.4"/>
+      <path d="M210 51h19M210 57h19" stroke="var(--sp-accent)"/><rect x="202" y="128" width="35" height="52" rx="1" fill="var(--sp-bg)"/>
+      <g transform="translate(204 137) scale(.78)" color="var(--sp-accent)">${badge}</g></g>
+      <g class="sp-glass"><defs><clipPath id="sp-bowl"><path d="M91 76h98l7 58c4 41-17 61-56 61s-60-20-56-61Z"/></clipPath></defs>
+      <path d="M91 76h98l7 58c4 41-17 61-56 61s-60-20-56-61Z" fill="var(--sp-bg)"/>
+      <g clip-path="url(#sp-bowl)"><g class="sp-liquid"><path d="M72 133q32-19 69-1t66-1v78H72Z" fill="var(--sp-accent)"/><path d="M75 135q34-19 68-1t66-1" fill="none" stroke="var(--sp-soft)" stroke-width="3" opacity=".75"/></g></g>
+      <path d="M91 76h98l7 58c4 41-17 61-56 61s-60-20-56-61Z" fill="none" stroke="var(--sp-ink)" stroke-width="1.6"/>
+      <path d="M140 195v56m-31 4q31-9 62 0Z" fill="var(--sp-bg)" stroke="var(--sp-ink)" stroke-width="1.8"/>
+      <path d="M99 86 95 125" fill="none" stroke="var(--sp-soft)" stroke-width="3" stroke-linecap="round"/>
+      <path d="M99 148q0 25 19 32" fill="none" stroke="var(--sp-bg)" stroke-width="2" opacity=".6"/></g>
+      <path d="M49 265h202" stroke="var(--sp-ink)" stroke-width=".6" opacity=".35"/></svg>`;
+    return top + `
+      <path d="M72 248V101a63 63 0 0 1 126 0v147Z" fill="var(--sp-soft)" opacity=".45"/>
+      <path d="M83 246V103a52 52 0 0 1 104 0v143Z" fill="none" stroke="var(--sp-accent)" stroke-width="1.2"/>
+      <path d="M99 241V107a36 36 0 0 1 72 0v134Z" fill="var(--sp-accent)" opacity=".8"/>
+      <path d="m103 241 68-19v19Z" fill="var(--sp-soft)"/>
+      <g class="sp-door"><path d="M99 241V107a36 36 0 0 1 72 0v134Z" fill="var(--sp-ink)" stroke="var(--sp-accent)" stroke-width="1.6"/>
+      <path d="M107 232V110a28 28 0 0 1 56 0v122Z" fill="none" stroke="var(--sp-soft)" stroke-width=".8"/>
+      <circle cx="156" cy="173" r="3" fill="var(--sp-accent)"/></g>
+      <path d="M66 248h138M59 255h152" stroke="var(--sp-accent)" stroke-width="1.4"/>
+      <g class="sp-key"><circle cx="218" cy="124" r="12" fill="none" stroke="var(--sp-accent)" stroke-width="2"/>
+      <path d="M218 136v31m0-8h9m-9-8h7" fill="none" stroke="var(--sp-accent)" stroke-width="4" stroke-linejoin="round"/>
+      <path d="m218 129 23 22v56l-23 16-23-16v-56Z" fill="var(--sp-bg)" stroke="var(--sp-accent)" stroke-width="1.5"/>
+      <path d="m218 139 16 16v48l-16 11-16-11v-48Z" fill="var(--sp-soft)" opacity=".6"/>
+      <g transform="translate(202 165) scale(.8)" color="var(--sp-accent)">${badge}</g><circle cx="218" cy="147" r="2" fill="var(--sp-accent)"/></g>
+      <g class="sp-detail" fill="none" stroke="var(--sp-accent)" stroke-width="1.3"><path d="M46 143v20m-10-10h20M216 68v14m-7-7h14"/></g></svg>`;
+  }
+  function launch() {
+    // A fresh installed-app document is the closest browser signal to an icon launch.
+    // Resuming a live app has no reliable icon-tap event, so never replay on focus/visibility.
+    const installed = navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches || window.matchMedia?.('(display-mode: window-controls-overlay)').matches;
+    const nav = window.performance?.getEntriesByType?.('navigation')[0];
+    if (!installed || nav?.type === 'reload' || nav?.type === 'back_forward' || document.prerendering) return;
+    if (document.hidden) {
+      const visible = () => { if (!document.hidden) { document.removeEventListener('visibilitychange', visible); show(); } };
+      document.addEventListener('visibilitychange', visible);
+    } else show();
+  }
+  function show() {
+    if (document.getElementById('seasonal-splash')) return;
+    const id = themeForDate(new Date());
+    const theme = themes[id];
+    const palette = config.palettes[id] || config.palettes.generic;
+    const dialog = document.createElement('dialog');
+    if (typeof dialog.showModal !== 'function') return;
+    dialog.id = 'seasonal-splash'; dialog.dataset.app = config.id; dialog.dataset.theme = id;
+    dialog.setAttribute('aria-labelledby', 'sp-title'); dialog.setAttribute('aria-describedby', 'sp-description');
+    ['bg','ink','accent','soft'].forEach((key,i) => dialog.style.setProperty('--sp-' + key, palette[i]));
+    dialog.innerHTML = `<div class="sp-content"><p class="sp-kicker">${config.kicker}</p><h1 id="sp-title" class="sp-brand">${config.title}</h1><p class="sp-season">${theme[0]}</p><div class="sp-art">${artwork(id)}</div><p id="sp-description" class="sp-tagline">${config.taglines[id] || theme[1]}</p><p class="sp-foot">${config.footer}</p><div class="sp-progress" aria-hidden="true"></div></div>`;
+    let timer;
+    const previous = document.activeElement;
+    function dismiss() {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', dismiss);
+      if (dialog.open) dialog.close();
+      dialog.remove();
+      if (previous?.isConnected && previous !== document.body) previous.focus({preventScroll:true});
+    }
+    function onVisibility() { if (document.hidden) dismiss(); }
+    dialog.addEventListener('cancel', event => event.preventDefault());
+    document.body.appendChild(dialog);
+    try { dialog.showModal(); } catch (_) { dialog.remove(); return; }
+    timer = window.setTimeout(dismiss, DURATION);
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', dismiss, {once:true});
+  }
+  try { launch(); } catch (_) { document.getElementById('seasonal-splash')?.remove(); }
+})();
+</script>
   <div id="root"></div>
 
   <script src="vendor/react.production.min.js"></script>
@@ -1198,3 +1419,4 @@
   </script>
 </body>
 </html>
+
