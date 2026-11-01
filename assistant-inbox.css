@@ -1,0 +1,12 @@
+.assistant-inbox{border:1px solid var(--hairline,#b5aa98);border-radius:12px;padding:18px;margin:16px 0;color:inherit;font:14px/1.5 system-ui,sans-serif;overflow-wrap:anywhere}
+.assistant-inbox h3{font:600 20px/1.3 Georgia,serif;margin:0 0 10px}
+.assistant-inbox p{font:inherit;margin:10px 0}
+.assistant-inbox button{font:600 14px/1.3 system-ui,sans-serif;color:inherit;background:transparent;border:1px solid currentColor;border-radius:7px;padding:11px 14px;min-height:44px;cursor:pointer}
+.assistant-inbox button:disabled{opacity:.5;cursor:default}
+.assistant-inbox [hidden]{display:none!important}
+.assistant-inbox a{color:inherit;text-decoration:underline}
+.assistant-inbox summary{cursor:pointer;min-height:44px;padding-top:12px;font-weight:600}
+.assistant-inbox label{display:block;font-weight:600}
+.assistant-inbox input{box-sizing:border-box;width:100%;min-height:44px;margin:8px 0;padding:10px;border:1px solid #aaa;border-radius:6px;background:transparent;color:inherit;font:16px system-ui,sans-serif}
+.assistant-actions{display:flex;gap:10px;flex-wrap:wrap}
+.assistant-inbox :focus-visible{outline:2px solid currentColor;outline-offset:3px}

@@ -1,4 +1,5 @@
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useRef } = React;
+    const ratingText = r => typeof r === "number" ? r.toFixed(2) : "Unrated";
 
     const STORAGE_KEY = "coffee-gazette-data-v3";
 
@@ -57,7 +58,7 @@
           ...entry,
           id: entry.id || makeEntryId(),
           beanId,
-          rating: typeof entry.rating === "number" ? entry.rating : 4,
+          rating: typeof entry.rating === "number" ? entry.rating : null,
           roast: entry.roast || "light",
           caffeine: entry.caffeine || "caffeine",
           instructions: entry.instructions || "",
@@ -141,7 +142,7 @@
 
     function loadData() {
       let saved = null;
-      try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+      try { if (localStorage.getItem(STORAGE_KEY)) saved = JSON.stringify(JournalInbox.readCollection(localStorage).data); } catch (e) {}
       bootedFromEmptyStorage = !saved;
       idbRestorePending = bootedFromEmptyStorage;
       try {
@@ -153,10 +154,10 @@
 
     function saveData(data) {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      } catch (e) {}
+        JournalInbox.saveData(localStorage, data);
+      } catch (e) { return; }
       if (!idbRestorePending) {
-        idbSet(STORAGE_KEY, data).catch(() => {});
+        idbSet(STORAGE_KEY, JournalInbox.readCollection(localStorage)).catch(() => {});
       }
     }
 
@@ -174,7 +175,7 @@
       }
     };
 
-    const ROAST_ORDER = ["light", "medium", "dark"];
+    const ROAST_ORDER = ["light", "medium", "dark", "unspecified"];
 
     const defaultForm = {
       name: "",
@@ -331,6 +332,7 @@
         _version: 3,
         _exported: new Date().toISOString(),
         ...normalizeData(data),
+        assistantReceipts: JournalInbox.readCollection(localStorage).receipts,
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -418,7 +420,7 @@
             onError("This doesn't look like a Coffee Gazette backup file.");
             return;
           }
-          onSuccess(normalizeData(parsed));
+          onSuccess(normalizeData(parsed), parsed.assistantReceipts || []);
         } catch {
           onError("Could not read file. Make sure it's a Coffee Gazette backup.");
         }
@@ -454,6 +456,12 @@
       );
     }
 
+    function AssistantEntries({inbox}) {
+      const ref = useRef(null);
+      useEffect(() => inbox ? inbox.mount(ref.current) : undefined, [inbox]);
+      return <div ref={ref} />;
+    }
+
     function CoffeeLog() {
       const [activeTab, setActiveTab] = useState("espresso");
       const [data, setData] = useState(loadData);
@@ -471,6 +479,14 @@
       const [excelBusy, setExcelBusy] = useState(false);
       const [excelMsg, setExcelMsg] = useState(null);
       const [backupAt, setBackupAt] = useState(lastBackupAt);
+      const [inboxReady, setInboxReady] = useState(!idbRestorePending);
+      const [inbox, setInbox] = useState(null);
+      useEffect(() => {
+        if (!inboxReady) return;
+        const receiver = AssistantInbox.create({core:JournalInbox,onSaved:next => setData(normalizeData(next))});
+        setInbox(receiver);
+        return () => receiver.destroy();
+      }, [inboxReady]);
 
       useEffect(() => {
         saveData(data);
@@ -484,9 +500,15 @@
           idbGet(STORAGE_KEY)
             .then(saved => {
               idbRestorePending = false;
-              if (!cancelled && saved) setData(normalizeData(saved));
+              if (!cancelled && saved) {
+                const wrapped = saved.format === 'assistant-local-collection';
+                const restored = normalizeData(wrapped ? saved.data : saved);
+                JournalInbox.saveData(localStorage, restored, wrapped ? saved.receipts : []);
+                setData(restored);
+              }
             })
-            .catch(() => { idbRestorePending = false; });
+            .catch(() => { idbRestorePending = false; })
+            .finally(() => { if (!cancelled) setInboxReady(true); });
         }
         if (navigator.storage && navigator.storage.persist) {
           navigator.storage.persist().catch(() => {});
@@ -547,7 +569,8 @@
         if (!file) return;
         importData(
           file,
-          (newData) => {
+          (newData, receipts) => {
+            JournalInbox.saveData(localStorage, newData, receipts);
             setData(prev => normalizeData({
               ...newData,
               notes: newData.notes !== undefined ? newData.notes : (prev.notes || ""),
@@ -585,7 +608,7 @@
       const grouped = ROAST_ORDER.reduce((acc, roast) => {
         const items = visibleBeans
           .filter((b) => b.roast === roast)
-          .sort((a, b) => b.rating - a.rating);
+          .sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
         if (items.length) acc[roast] = items;
         return acc;
       }, {});
@@ -754,14 +777,15 @@
                   </div>
                 ) : (
                   sortedCountries.map(country => {
-                    const beans = countryMap[country].sort((a, b) => b.rating - a.rating);
-                    const avg = (beans.reduce((s, b) => s + b.rating, 0) / beans.length);
+                    const beans = countryMap[country].sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
+                    const rated = beans.filter(b => typeof b.rating === "number");
+                    const avg = rated.length ? rated.reduce((s, b) => s + b.rating, 0) / rated.length : null;
                     return (
                       <div key={country}>
                         <div className="origin-country-header">
                           <div className="origin-country-name">{country}</div>
                           <div className="origin-country-meta">
-                            AVG {avg.toFixed(2)} · {beans.length} {beans.length === 1 ? "BEAN" : "BEANS"}
+                            AVG {ratingText(avg)} · {beans.length} {beans.length === 1 ? "BEAN" : "BEANS"}
                           </div>
                         </div>
                         {beans.map(bean => (
@@ -770,12 +794,12 @@
                             bean={bean}
                             extraTags={
                               <span className={bean.caffeine === "decaf" ? "decaf-badge" : "caff-badge"} style={{fontSize:"8px"}}>
-                                {bean.caffeine === "decaf" ? "Decaf" : "Caff"}
+                                {bean.caffeine === "unspecified" ? "Caffeine unknown" : bean.caffeine === "decaf" ? "Decaf" : "Caff"}
                               </span>
                             }
                             right={<>
                               <BeanRating rating={bean.rating} size={12} />
-                              <span className="rating-num">{bean.rating.toFixed(2)}</span>
+                              <span className="rating-num">{ratingText(bean.rating)}</span>
                             </>}
                           />
                         ))}
@@ -859,7 +883,7 @@
                             bean={bean}
                             right={<>
                               <BeanRating rating={bean.rating} size={11} />
-                              <span className="rating-num">{bean.rating.toFixed(2)}</span>
+                              <span className="rating-num">{ratingText(bean.rating)}</span>
                             </>}
                           />
                         ))}
@@ -885,11 +909,11 @@
                 <div className="detail-roaster">{detailBean.roaster}</div>
                 <div className="detail-rating-row">
                   <BeanRating rating={detailBean.rating} size={22} />
-                  <span className="detail-rating-num">{detailBean.rating.toFixed(2)}</span>
+                  <span className="detail-rating-num">{ratingText(detailBean.rating)}</span>
                 </div>
                 <div className="detail-meta-badges">
                   <span className={detailBean.caffeine === "decaf" ? "decaf-badge" : "caff-badge"}>
-                    {detailBean.caffeine === "decaf" ? "Decaf" : "Caffeine"}
+                    {detailBean.caffeine === "unspecified" ? "Caffeine unknown" : detailBean.caffeine === "decaf" ? "Decaf" : "Caffeine"}
                   </span>
                 </div>
                 {detailBean.countries && detailBean.countries.length > 0 && (
@@ -994,7 +1018,7 @@
                           <div className="bean-name">{bean.name}</div>
                           <div className="rating-display">
                             <BeanRating rating={bean.rating} size={13} />
-                            <span className="rating-num">{bean.rating.toFixed(2)}</span>
+                            <span className="rating-num">{ratingText(bean.rating)}</span>
                           </div>
                         </div>
                         <div className="bean-roaster">{bean.roaster}</div>
@@ -1064,6 +1088,7 @@
                   <button className="modal-close" aria-label="Close settings" onClick={() => setShowSettings(false)}>✕</button>
                 </div>
 
+                <AssistantEntries inbox={inbox} />
                 <div className="settings-section-label">Data Transfer</div>
 
                 {/* Export */}
@@ -1273,7 +1298,7 @@
                     <label className="form-label" htmlFor="field-rating">Rating — out of 5</label>
                     <div className="bean-rating-row" style={{marginBottom: "10px"}}>
                       <BeanRating rating={form.rating} size={22} />
-                      <span className="rating-num-display">{form.rating.toFixed(2)}</span>
+                      <span className="rating-num-display">{ratingText(form.rating)}</span>
                     </div>
                     <input
                       id="field-rating"
@@ -1282,9 +1307,10 @@
                       min={0}
                       max={5}
                       step={0.25}
-                      value={form.rating}
+                      value={form.rating ?? 0}
                       onChange={(e) => setForm({ ...form, rating: parseFloat(e.target.value) })}
                     />
+                    <button type="button" className="btn-cancel" onClick={() => setForm({...form, rating:null})}>Mark unrated</button>
                     <div className="rating-scale-labels">
                       <span className="rating-scale-label">0</span>
                       <span className="rating-scale-label">5</span>
@@ -1318,3 +1344,4 @@
 
     const root = ReactDOM.createRoot(document.getElementById("root"));
     root.render(<CoffeeLog />);
+

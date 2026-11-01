@@ -1,8 +1,10 @@
 /* Compiled from src/app.jsx - do not edit directly. Rebuild with build/compile.html */
 const {
   useState,
-  useEffect
+  useEffect,
+  useRef
 } = React;
+const ratingText = r => typeof r === "number" ? r.toFixed(2) : "Unrated";
 const STORAGE_KEY = "coffee-gazette-data-v3";
 const BREW_METHODS = [{
   key: "pourover",
@@ -75,7 +77,7 @@ function normalizeData(raw) {
       ...entry,
       id: entry.id || makeEntryId(),
       beanId,
-      rating: typeof entry.rating === "number" ? entry.rating : 4,
+      rating: typeof entry.rating === "number" ? entry.rating : null,
       roast: entry.roast || "light",
       caffeine: entry.caffeine || "caffeine",
       instructions: entry.instructions || ""
@@ -166,7 +168,7 @@ let idbRestorePending = false;
 function loadData() {
   let saved = null;
   try {
-    saved = localStorage.getItem(STORAGE_KEY);
+    if (localStorage.getItem(STORAGE_KEY)) saved = JSON.stringify(JournalInbox.readCollection(localStorage).data);
   } catch (e) {}
   bootedFromEmptyStorage = !saved;
   idbRestorePending = bootedFromEmptyStorage;
@@ -178,10 +180,12 @@ function loadData() {
 }
 function saveData(data) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (e) {}
+    JournalInbox.saveData(localStorage, data);
+  } catch (e) {
+    return;
+  }
   if (!idbRestorePending) {
-    idbSet(STORAGE_KEY, data).catch(() => {});
+    idbSet(STORAGE_KEY, JournalInbox.readCollection(localStorage)).catch(() => {});
   }
 }
 
@@ -200,7 +204,7 @@ const lastBackupAt = () => {
     return null;
   }
 };
-const ROAST_ORDER = ["light", "medium", "dark"];
+const ROAST_ORDER = ["light", "medium", "dark", "unspecified"];
 const defaultForm = {
   name: "",
   roaster: "",
@@ -382,7 +386,8 @@ function exportData(data) {
     _app: "coffee-gazette",
     _version: 3,
     _exported: new Date().toISOString(),
-    ...normalizeData(data)
+    ...normalizeData(data),
+    assistantReceipts: JournalInbox.readCollection(localStorage).receipts
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: "application/json"
@@ -469,7 +474,7 @@ function importData(file, onSuccess, onError) {
         onError("This doesn't look like a Coffee Gazette backup file.");
         return;
       }
-      onSuccess(normalizeData(parsed));
+      onSuccess(normalizeData(parsed), parsed.assistantReceipts || []);
     } catch {
       onError("Could not read file. Make sure it's a Coffee Gazette backup.");
     }
@@ -509,6 +514,15 @@ function AllBeansCard({
     className: "origin-bean-right"
   }, right));
 }
+function AssistantEntries({
+  inbox
+}) {
+  const ref = useRef(null);
+  useEffect(() => inbox ? inbox.mount(ref.current) : undefined, [inbox]);
+  return /*#__PURE__*/React.createElement("div", {
+    ref: ref
+  });
+}
 function CoffeeLog() {
   const [activeTab, setActiveTab] = useState("espresso");
   const [data, setData] = useState(loadData);
@@ -526,6 +540,17 @@ function CoffeeLog() {
   const [excelBusy, setExcelBusy] = useState(false);
   const [excelMsg, setExcelMsg] = useState(null);
   const [backupAt, setBackupAt] = useState(lastBackupAt);
+  const [inboxReady, setInboxReady] = useState(!idbRestorePending);
+  const [inbox, setInbox] = useState(null);
+  useEffect(() => {
+    if (!inboxReady) return;
+    const receiver = AssistantInbox.create({
+      core: JournalInbox,
+      onSaved: next => setData(normalizeData(next))
+    });
+    setInbox(receiver);
+    return () => receiver.destroy();
+  }, [inboxReady]);
   useEffect(() => {
     saveData(data);
   }, [data]);
@@ -537,9 +562,16 @@ function CoffeeLog() {
     if (bootedFromEmptyStorage) {
       idbGet(STORAGE_KEY).then(saved => {
         idbRestorePending = false;
-        if (!cancelled && saved) setData(normalizeData(saved));
+        if (!cancelled && saved) {
+          const wrapped = saved.format === 'assistant-local-collection';
+          const restored = normalizeData(wrapped ? saved.data : saved);
+          JournalInbox.saveData(localStorage, restored, wrapped ? saved.receipts : []);
+          setData(restored);
+        }
       }).catch(() => {
         idbRestorePending = false;
+      }).finally(() => {
+        if (!cancelled) setInboxReady(true);
       });
     }
     if (navigator.storage && navigator.storage.persist) {
@@ -595,7 +627,8 @@ function CoffeeLog() {
   const handleImportFile = e => {
     const file = e.target.files[0];
     if (!file) return;
-    importData(file, newData => {
+    importData(file, (newData, receipts) => {
+      JournalInbox.saveData(localStorage, newData, receipts);
       setData(prev => normalizeData({
         ...newData,
         notes: newData.notes !== undefined ? newData.notes : prev.notes || ""
@@ -620,7 +653,7 @@ function CoffeeLog() {
   const searchQuery = search.trim().toLowerCase();
   const visibleBeans = searchQuery ? currentBeans.filter(b => [b.name, b.roaster, b.altitude, b.instructions, ...(b.countries || [])].some(v => (v || "").toLowerCase().includes(searchQuery))) : currentBeans;
   const grouped = ROAST_ORDER.reduce((acc, roast) => {
-    const items = visibleBeans.filter(b => b.roast === roast).sort((a, b) => b.rating - a.rating);
+    const items = visibleBeans.filter(b => b.roast === roast).sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
     if (items.length) acc[roast] = items;
     return acc;
   }, {});
@@ -785,8 +818,9 @@ function CoffeeLog() {
     }, "No beans logged yet."), /*#__PURE__*/React.createElement("div", {
       className: "empty-state-sub"
     }, "Add entries in any brew method tab.")) : sortedCountries.map(country => {
-      const beans = countryMap[country].sort((a, b) => b.rating - a.rating);
-      const avg = beans.reduce((s, b) => s + b.rating, 0) / beans.length;
+      const beans = countryMap[country].sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
+      const rated = beans.filter(b => typeof b.rating === "number");
+      const avg = rated.length ? rated.reduce((s, b) => s + b.rating, 0) / rated.length : null;
       return /*#__PURE__*/React.createElement("div", {
         key: country
       }, /*#__PURE__*/React.createElement("div", {
@@ -795,7 +829,7 @@ function CoffeeLog() {
         className: "origin-country-name"
       }, country), /*#__PURE__*/React.createElement("div", {
         className: "origin-country-meta"
-      }, "AVG ", avg.toFixed(2), " \xB7 ", beans.length, " ", beans.length === 1 ? "BEAN" : "BEANS")), beans.map(bean => /*#__PURE__*/React.createElement(AllBeansCard, {
+      }, "AVG ", ratingText(avg), " \xB7 ", beans.length, " ", beans.length === 1 ? "BEAN" : "BEANS")), beans.map(bean => /*#__PURE__*/React.createElement(AllBeansCard, {
         key: bean.id + country,
         bean: bean,
         extraTags: /*#__PURE__*/React.createElement("span", {
@@ -803,13 +837,13 @@ function CoffeeLog() {
           style: {
             fontSize: "8px"
           }
-        }, bean.caffeine === "decaf" ? "Decaf" : "Caff"),
+        }, bean.caffeine === "unspecified" ? "Caffeine unknown" : bean.caffeine === "decaf" ? "Decaf" : "Caff"),
         right: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(BeanRating, {
           rating: bean.rating,
           size: 12
         }), /*#__PURE__*/React.createElement("span", {
           className: "rating-num"
-        }, bean.rating.toFixed(2)))
+        }, ratingText(bean.rating)))
       })));
     }));
   })(), showAltitude && (() => {
@@ -883,7 +917,7 @@ function CoffeeLog() {
         size: 11
       }), /*#__PURE__*/React.createElement("span", {
         className: "rating-num"
-      }, bean.rating.toFixed(2)))
+      }, ratingText(bean.rating)))
     })))));
   })(), !showOrigin && !showAltitude && detailBean ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "detail-back"
@@ -905,11 +939,11 @@ function CoffeeLog() {
     size: 22
   }), /*#__PURE__*/React.createElement("span", {
     className: "detail-rating-num"
-  }, detailBean.rating.toFixed(2))), /*#__PURE__*/React.createElement("div", {
+  }, ratingText(detailBean.rating))), /*#__PURE__*/React.createElement("div", {
     className: "detail-meta-badges"
   }, /*#__PURE__*/React.createElement("span", {
     className: detailBean.caffeine === "decaf" ? "decaf-badge" : "caff-badge"
-  }, detailBean.caffeine === "decaf" ? "Decaf" : "Caffeine")), detailBean.countries && detailBean.countries.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, detailBean.caffeine === "unspecified" ? "Caffeine unknown" : detailBean.caffeine === "decaf" ? "Decaf" : "Caffeine")), detailBean.countries && detailBean.countries.length > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: "10px"
     }
@@ -1024,7 +1058,7 @@ function CoffeeLog() {
     size: 13
   }), /*#__PURE__*/React.createElement("span", {
     className: "rating-num"
-  }, bean.rating.toFixed(2)))), /*#__PURE__*/React.createElement("div", {
+  }, ratingText(bean.rating)))), /*#__PURE__*/React.createElement("div", {
     className: "bean-roaster"
   }, bean.roaster), /*#__PURE__*/React.createElement("div", {
     className: "bean-meta-row"
@@ -1094,7 +1128,9 @@ function CoffeeLog() {
     className: "modal-close",
     "aria-label": "Close settings",
     onClick: () => setShowSettings(false)
-  }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+  }, "\u2715")), /*#__PURE__*/React.createElement(AssistantEntries, {
+    inbox: inbox
+  }), /*#__PURE__*/React.createElement("div", {
     className: "settings-section-label"
   }, "Data Transfer"), /*#__PURE__*/React.createElement("div", {
     className: "settings-row"
@@ -1312,19 +1348,26 @@ function CoffeeLog() {
     size: 22
   }), /*#__PURE__*/React.createElement("span", {
     className: "rating-num-display"
-  }, form.rating.toFixed(2))), /*#__PURE__*/React.createElement("input", {
+  }, ratingText(form.rating))), /*#__PURE__*/React.createElement("input", {
     id: "field-rating",
     type: "range",
     className: "rating-slider",
     min: 0,
     max: 5,
     step: 0.25,
-    value: form.rating,
+    value: form.rating ?? 0,
     onChange: e => setForm({
       ...form,
       rating: parseFloat(e.target.value)
     })
-  }), /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    className: "btn-cancel",
+    onClick: () => setForm({
+      ...form,
+      rating: null
+    })
+  }, "Mark unrated"), /*#__PURE__*/React.createElement("div", {
     className: "rating-scale-labels"
   }, /*#__PURE__*/React.createElement("span", {
     className: "rating-scale-label"

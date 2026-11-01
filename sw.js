@@ -1,9 +1,12 @@
 /* Coffee Gazette service worker — offline-first app shell.
    Bump CACHE_NAME whenever app.js, index.html, or vendor files change. */
-const CACHE_NAME = "coffee-gazette-v4.1.2";
+const CACHE_NAME = "coffee-gazette-v4.2.0";
 const APP_SHELL = [
   "./",
   "./index.html",
+  "./assistant-inbox-core.js?v=1",
+  "./assistant-inbox.js?v=1",
+  "./assistant-inbox.css?v=1",
   "./app.js",
   "./manifest.webmanifest",
   "./vendor/react.production.min.js",
@@ -33,6 +36,9 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
+  // Tokens and delivery traffic must never enter the app cache.
+  if (new URL(req.url).origin !== self.location.origin && !/fonts\.g(static|oogleapis)\.com$/.test(new URL(req.url).hostname)) return;
+  if (new URL(req.url).pathname.includes("/inbox/") || new URL(req.url).pathname.endsWith("/delivery-key.json")) return;
 
   // Navigations: network-first so a normal reload picks up new versions,
   // falling back to the cached shell when offline.
@@ -65,4 +71,5 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
 
